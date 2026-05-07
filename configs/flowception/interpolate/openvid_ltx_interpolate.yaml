@@ -1,0 +1,144 @@
+# ─────────────────────────────────────────────────────────────────
+# LTX-2B Flowception Interpolation — 512px — OpenVid-1M
+#
+# Uses: ltx2b model, LTX_AE_0_9_5 VAE, t5_xxl text encoder.
+#
+# Launch (single node, 8 GPU):
+#   accelerate launch --num_processes 8 main.py \
+#       -c configs/flowception/interpolate/openvid_ltx_interpolate.yaml \
+#       -t -n ltx_interpolate
+# ─────────────────────────────────────────────────────────────────
+
+DATA:
+  AESTHETIC_COND: false
+  ANNOT_TRAIN: ''
+  ANNOT_VAL: ''
+  BLUR_COND: true
+  CAPTION_IDX:
+  - '1'
+  - '2'
+  CLUSTER: local
+  CROP_SCALE: 0.9
+  DATALOADER_STYLE: map_style
+  DATASET: openvid1m_flowception
+  DATASET_VARIANT: BLURRED
+  DATA_ROOT: ''
+  ENTROPY_THRESHOLD: -1.0
+  EXTRA_DATASETS: none
+  FLIP_COND: true
+  MAX_FRAMES: 128 #256
+  NUM_CLASSES: 1000
+  NUM_CONTEXT_FRAMES: 2
+  PADDING_INDEX: 50
+  POWER_COSINE: false
+  RECAPTION:
+    RECAPTIONED_RATIO: 0.75
+  VAL_DATASET: ''
+  VAL_DATASET_VARIANT: BLURRED
+  VAL_DATA_ROOT: ''
+  VIDEO:
+    MIN_MOTION_SCORE: 4.3
+    SAMPLING_FPS: 24
+  WORKERS: 2
+
+FRAMEWORK:
+  DENOISER: DENOISER
+  SIGMA_SCALE: 3.0
+  TIMESTEPS: 1000
+  VIDEO:
+    REPA:
+      EMB_DIM: 1024
+      LAYER: -1
+
+EVAL:
+  FID:
+    SAMPLER: ddim
+    SKIP_F: 4
+    TARGET_DATASET: val
+  GROUPS: []
+  GROUPS_COUNT: 5
+  NUM_SAMPLES: 256
+
+FLOWCEPTION:
+  ARCHITECTURE:
+    HEAD_SHARED_OFFSETS: false
+    MERGE_MODE: gating
+  KAPPA_SCHEDULER: linear
+  LOSS:
+    IMG_WEIGHT: 0.05
+    POISSON_WEIGHT: 0.1
+  NUM_START_FRAMES: 2
+  SAMPLING:
+    GUIDANCE_INS: 1.0
+    GUIDANCE_OFFSET: 0.0
+    INSERTION_RULE: learned
+  TAU_GLOBAL_DIST: uniform
+
+LOGGING:
+  LOG_LEVEL: INFO
+
+MODEL:
+  ADD_REFINER: false
+  CONDITION: ltx2b-distilled
+  DENOISER:
+    CONCAT_DIM: 256
+  DROP_PATH: 0.0
+  EMBED_TYPE: scaled
+  ENCODER: {}
+  OUT_CH: 3
+  STRICT_WEIGHTS: false
+  TEMPORAL_DOWNSCALING: 1
+  TEXT_ENCODER:
+    HIDDEN_DIM: 4096
+    HIDDEN_DIM_2: -1
+    TOKEN_LIMIT: 77
+    VERSION: t5_xxl
+    ZERO_OUT: none
+  VAE:
+    CHECKPOINT: ''
+    FACTOR: 32
+    NAME: LTX_AE_0_9_5
+    NORMALIZE_LATENTS: true
+    OUT_CH: 128
+    SCALE_FACTOR: 1.0
+    TEMPORAL_FACTOR: 8
+  VIDEO:
+    ATTENTION_MASK: all
+    CONTEXT_FRAMES: 1
+    CONTEXT_LATENTS: 1
+    RD_MASK_FIRST_FRAME: true
+    ROPE_H_MULT: 200
+    ROPE_MODE: global
+    ROPE_THETA: 10000
+    ROPE_T_MULT: 20
+    ROPE_W_MULT: 200
+  WEIGHTS: ''
+  FETCH_PRETRAINED: true
+
+SAMPLER:
+  CFG_SCALE: 4.0
+  NUM_STEPS: 50
+  UNCOND_GEN: false
+
+SOLVER:
+  AMP: true
+  AMP_TYPE: bf16
+  BATCH_SIZE: 1
+  CKPT_EVERY: 2500
+  COMPILE_MODELS: false
+  DEC_BATCH_SIZE: 1
+  EPOCHS: 500
+  EVAL_FID: false
+  EVAL_FREQ: 10000
+  FSDP:
+    WRAP_CONDITIONER: false
+  IM_SIZE: 256
+  LOG_EVERY: 20
+  LOG_WANDB: false
+  LR: 0.0001
+  MAX_ITER: 999999999
+  OPTIM: AdamW
+  SNAPSHOT_F: 1000
+  USE_CFG: false
+  WEIGHT_DECAY: 0.03
+  TRAINER: flowception_interpolate

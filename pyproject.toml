@@ -1,0 +1,147 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flowception"
+readme = "README.md"
+authors = [
+   {name = "Tariq Berrada Ifriqi"},
+   {name = "John Nguyen"},
+   {name = "Karteek Alahari"},
+   {name = "Jakob Verbeek"},
+   {name = "Ricky T. Q. Chen"},
+]
+requires-python = ">=3.10"
+version = "0.0.1"
+license = {file = "LICENSE"}
+description = "Temporally expansive flow matching for video generation."
+classifiers = [
+   "Development Status :: 3 - Alpha",
+   "Intended Audience :: Science/Research",
+   "License :: Free for non-commercial use",
+   "Programming Language :: Python :: 3",
+   "Programming Language :: Python :: 3.10",
+   "Programming Language :: Python :: 3.11",
+   "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+dependencies = [
+   "torch>=2.0.1",
+   "torchvision",
+   "einops>=0.7.0",
+   "diffusers>=0.26.0",
+   "accelerate>=0.26.1",
+   "timm>=0.9.16",
+   "transformers>=4.37.0,<5.0",
+   "huggingface_hub>=0.26,<1.0",
+   "yacs>=0.1.8",
+   "submitit>=1.5.1",
+   "wandb>=0.16.2",
+   "packaging",
+   "numpy",
+   "scipy",
+   "joblib",
+   "pyyaml",
+   "safetensors",
+   "webdataset>=0.2.86",
+   "torchdiffeq",
+   "imageio[ffmpeg]",
+   "matplotlib",
+   "ipython",
+   "decord",
+   "av",
+   "pillow",
+   "tqdm",
+   "requests",
+   "tiktoken",
+   "sentencepiece",
+   "opencv-python-headless",
+   "pandas",
+   "liger-kernel",
+]
+
+[project.urls]
+  Homepage = "https://flowception-meta.github.io/"
+  Source = "https://github.com/facebookresearch/flowception"
+  Tracker = "https://github.com/facebookresearch/flowception/issues"
+
+[project.optional-dependencies]
+    dev = [
+        # Test
+        "pytest>=7.2.0",
+        # Format
+        "ruff==0.3.4",
+        "pre-commit>=3.6.1",
+        # Linters
+        "mypy>=0.971",
+        "pylint>=2.13.9",
+        # plotting
+        "matplotlib",
+        "scikit-learn",
+    ]
+    notebook = [
+        "omegaconf>=2.3.0",
+    ]
+
+[tool.setuptools.packages.find]
+namespaces = false
+
+[tool.ruff]
+line-length = 110
+exclude = [
+    "experimental/",
+    "data/datasets/example_prompts*.py",
+    "data/datasets/imagenet_classes.py",
+    "wandb/",
+]
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+
+[tool.ruff.lint.isort]
+known-third-party = ["wandb"]
+
+[tool.pylint]
+  [tool.pylint."MESSAGES CONTROL"]
+  # disabled messages
+  disable = """
+      broad-except,
+      fixme,
+      invalid-name,
+      logging-fstring-interpolation,
+      missing-docstring,
+      no-else-return,
+      no-member,
+      protected-access,
+      too-few-public-methods,
+      too-many-locals,
+      too-many-statements,
+      too-many-return-statements,
+      too-many-branches,
+      useless-import-alias,
+      unspecified-encoding,
+      use-dict-literal,
+      useless-import-alias
+  """
+  [tool.pylint.DESIGN]
+  max-args = 8
+
+  [tool.pylint.FORMAT]
+  max-line-length = "110"
+
+  [tool.pylint.SIMILARITIES]
+  ignore-imports = "yes"

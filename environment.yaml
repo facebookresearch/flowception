@@ -1,0 +1,13 @@
+name: flowception
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pip
+  - pytorch>=2.0
+  - torchvision
+  - pytorch-cuda=12.1
+  - pip:
+      - -e .

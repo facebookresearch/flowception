@@ -26,10 +26,10 @@ Meta has a [bounty program](https://bugbounty.meta.com/) for the safe
 disclosure of security bugs. In those cases, please go through the process
 outlined on that page and do not file a public issue.
 
-## Coding Style  
-* 2 spaces for indentation rather than tabs
-* 80 character line length
-* ...
+## Coding Style
+* 4 spaces for indentation rather than tabs
+* 110 character line length
+* Style is enforced by [ruff](https://docs.astral.sh/ruff/). Run `pre-commit run --all-files` before submitting.
 
 ## License
 By contributing to Flowception, you agree that your contributions will be licensed

@@ -1,0 +1,74 @@
+# Public dataset path template.
+#
+# Keep this file free of machine-specific or organization-only paths before
+# publishing. Users can either edit the LOCAL entries below or add another
+# cluster name and set DATA.CLUSTER to that name in their config/CLI overrides.
+
+TOY_COLORING:
+  LOCAL:
+    # Synthetic dataset used by configs/flowception/toy/*. No external files are
+    # required; this section is included so every public dataset has an entry.
+    ROOT: ""
+
+OPENVID1M:
+  LOCAL:
+    # Expected layout:
+    #   ROOT/
+    #     data/train/OpenVid-1M.csv
+    #     video/*.mp4
+    ROOT: "/path/to/OpenVid-1M"
+
+TAICHI:
+  LOCAL:
+    # .pt file or directory of .pt shards. Each entry should include:
+    #   {"filepath": "/absolute/path/to/video.mp4", "description": "..."}
+    ANNOT_PT: "/path/to/taichi/annotations.pt"
+
+RE10K:
+  LOCAL:
+    # VIDEO_PATHS is optional but recommended for faster startup. It should be a
+    # joblib .pt file containing entries like:
+    #   {"filepath": "/absolute/path/to/video.mp4", "description": "..."}
+    VIDEOS_DIR: "/path/to/re10k/videos/train"
+    VIDEO_PATHS: "/path/to/re10k/re10k_train_index.pt"
+
+VCHITECT2:
+  LOCAL:
+    # ANNOT_JSON should contain records with a video identifier/name and caption.
+    # INDEX_DB should map video basenames to tar member locations for the loader.
+    ANNOT_JSON: "/path/to/vchitect2/annotation.json"
+    INDEX_DB: "/path/to/vchitect2/video_index.sqlite"
+
+YOUCOOK2:
+  LOCAL:
+    # ANNOT_DIR may be .pt/.pkl/.joblib/.json. Entries should include:
+    #   {"filename": "video.mp4", "caption": [{"start": 0.0, "end": 4.0, "text": "..."}]}
+    ROOT: "/path/to/youcook2/videos"
+    ANNOT_DIR: "/path/to/youcook2/annotations.pt"
+
+KINETICS:
+  LOCAL:
+    # CSV_PATH should use the standard Kinetics columns consumed by the loader.
+    # Videos are expected as:
+    #   VID_ROOT/<youtube_id>_<start:06d>_<end:06d>.mp4
+    CSV_PATH: "/path/to/kinetics/train.csv"
+    VID_ROOT: "/path/to/kinetics/train"
+
+CUSTOM_SUBJECTNESS:
+  LOCAL:
+    # This is the public placeholder for a custom subjectness-style
+    # loader. ROOT should be a directory of .pt shards. Each shard is expected to
+    # contain video entries with file paths, captions, motion/entropy metadata,
+    # and subjectness fields used by the custom subjectness loader.
+    ROOT: "/path/to/custom_subjectness_annotations"
+
+CUSTOM_WEBDATASET:
+  LOCAL:
+    # This is the public placeholder for a custom WebDataset-style
+    # loader. IMG_ROOT should contain one or more .tar shards. CAPTIONS_* and
+    # ENTROPY mirror IMG_ROOT with .pt metadata files at matching relative paths.
+    ORIGINAL:
+      IMG_ROOT: "/path/to/custom_webdataset/images"
+    CAPTIONS_0: "/path/to/custom_webdataset/captions_0"
+    CAPTIONS_1: "/path/to/custom_webdataset/captions_1"
+    ENTROPY: "/path/to/custom_webdataset/entropy"
