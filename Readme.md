@@ -2,7 +2,7 @@
 
 ### Temporally Expansive Flow Matching for Video Generation
 
-**[Tariq Berrada Ifriqi](https://tariqberrada.github.io/), John Nguyen, Karteek Alahari, Jakob Verbeek, [Ricky T. Q. Chen](https://rtqichen.github.io/)**
+**[Tariq Berrada Ifriqi](https://tariqberrada.github.io/), [John Nguyen](https://johnlnguyen.com/), Karteek Alahari, Jakob Verbeek, [Ricky T. Q. Chen](https://rtqichen.github.io/)**
 
 **Meta FAIR**
 
