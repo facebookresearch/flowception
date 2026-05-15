@@ -1,0 +1,14 @@
+{
+  "autoReconnectDevices": false,
+  "loggerAutoStart": true,
+  "reconnectDevicePaths": [],
+  "replHistoryByDevice": {},
+  "serialPortOperationTimeoutMs": 3000,
+  "serialPortAggressiveRecoveryProbeTimeoutMs": 9000,
+  "pythonProbeRuntimeInfoTimeoutMs": 2500,
+  "pythonGetRuntimeInfoTimeoutMs": 5000,
+  "pythonExecRawCaptureTimeoutMs": 10000,
+  "pythonSoftRebootTimeoutMs": 8000,
+  "pythonHardRebootTimeoutMs": 1500,
+  "pythonSerialWriteAckTimeoutMs": 2000
+}
