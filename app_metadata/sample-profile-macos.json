@@ -1,0 +1,19 @@
+{
+  "os": "macos",
+  "arch": "arm64",
+  "hardwareProfile": "macbook-apple-silicon-laptop",
+  "workflow": ["openvid-i2v"],
+  "selectedDeps": ["python", "pytorch", "flash-attn"],
+  "modelVariant": "distilled",
+  "integrationIntent": "replace-flowception-backbone-with-ltx2-directly",
+  "freeDiskTb": 1.2,
+  "licenseAcceptanceRequired": true,
+  "licenseAccepted": false,
+  "installStatus": "failed",
+  "userPreference": {
+    "autoRemoveFailedComponents": true
+  },
+  "sourceFeedback": {
+    "https://github.com/Lightricks/LTX-2": "not_helpful"
+  }
+}
