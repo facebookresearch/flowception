@@ -1,0 +1,176 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-05-15",
+  "project": "flowception",
+  "decisionMatrix": {
+    "essential": [
+      {
+        "id": "python",
+        "name": "Python",
+        "defaultVersion": "3.10",
+        "alternatives": ["3.11"],
+        "recommendedFor": ["all"],
+        "installByDefault": true,
+        "notes": "Use isolated environment. 3.10 is safest baseline for this project.",
+        "confidence": "high"
+      },
+      {
+        "id": "pytorch",
+        "name": "PyTorch",
+        "defaultVersion": "stable",
+        "alternatives": ["preview"],
+        "recommendedFor": ["all"],
+        "installByDefault": true,
+        "notes": "macOS uses CPU/MPS paths. CUDA builds are Linux/NVIDIA specific.",
+        "confidence": "high"
+      },
+      {
+        "id": "accelerate",
+        "name": "Hugging Face Accelerate",
+        "defaultVersion": ">=0.26.1",
+        "alternatives": [],
+        "recommendedFor": ["distributed-launch", "single-node"],
+        "installByDefault": true,
+        "notes": "Required for project launch patterns and trainer setup.",
+        "confidence": "high"
+      },
+      {
+        "id": "diffusers-transformers",
+        "name": "Diffusers and Transformers",
+        "defaultVersion": "project-pinned-range",
+        "alternatives": [],
+        "recommendedFor": ["ltx-backed-workflows"],
+        "installByDefault": true,
+        "notes": "Needed for LTX-related model and pipeline components.",
+        "confidence": "high"
+      },
+      {
+        "id": "yacs",
+        "name": "YACS",
+        "defaultVersion": ">=0.1.8",
+        "alternatives": [],
+        "recommendedFor": ["all"],
+        "installByDefault": true,
+        "notes": "Project config system dependency.",
+        "confidence": "high"
+      }
+    ],
+    "optional": [
+      {
+        "id": "wandb",
+        "name": "Weights and Biases",
+        "defaultVersion": ">=0.16.2",
+        "alternatives": ["disabled-logging"],
+        "recommendedFor": ["experiment-tracking"],
+        "installByDefault": false,
+        "notes": "Optional tracking; disable for local-only runs.",
+        "confidence": "high"
+      },
+      {
+        "id": "openvid-dataset",
+        "name": "OpenVid-1M Dataset",
+        "defaultVersion": "current",
+        "alternatives": ["OpenVidHD-subset", "toy-dataset"],
+        "recommendedFor": ["real-training"],
+        "installByDefault": false,
+        "notes": "Very large storage footprint; enforce preflight disk checks.",
+        "confidence": "high"
+      },
+      {
+        "id": "ltx-video-checkpoints",
+        "name": "LTX Video Checkpoints",
+        "defaultVersion": "0.9.5 or newer",
+        "alternatives": ["flowception-v1-backbone-configs"],
+        "recommendedFor": ["ltx-workflows"],
+        "installByDefault": false,
+        "notes": "Match checkpoint generation mode to guidance settings.",
+        "confidence": "high"
+      }
+    ],
+    "experimental": [
+      {
+        "id": "ltx2-companion",
+        "name": "LTX-2 Companion Integration",
+        "defaultVersion": "2.x",
+        "alternatives": ["none"],
+        "recommendedFor": ["advanced-users"],
+        "installByDefault": false,
+        "notes": "Treat as separate ecosystem, not a direct replacement of Flowception internals.",
+        "confidence": "medium"
+      },
+      {
+        "id": "community-quantizations",
+        "name": "Community Quantized/Optimized Forks",
+        "defaultVersion": "varies",
+        "alternatives": ["official-upstream-only"],
+        "recommendedFor": ["power-users"],
+        "installByDefault": false,
+        "notes": "Mark low confidence until validated against current upstream versions.",
+        "confidence": "low"
+      }
+    ],
+    "incompatible": [
+      {
+        "id": "flash-attn-macos",
+        "name": "Flash Attention on default macOS setups",
+        "blockedWhen": {
+          "os": ["macos"]
+        },
+        "reason": "CUDA-specific in typical distribution paths.",
+        "replacement": "Use baseline attention paths or supported MPS alternatives.",
+        "confidence": "high"
+      },
+      {
+        "id": "apex-macos",
+        "name": "NVIDIA Apex on default macOS setups",
+        "blockedWhen": {
+          "os": ["macos"]
+        },
+        "reason": "NVIDIA CUDA extension flow does not fit standard macOS environment.",
+        "replacement": "Use native PyTorch optimizers and mixed precision where supported.",
+        "confidence": "high"
+      }
+    ]
+  },
+  "autoConfigProfiles": [
+    {
+      "id": "profile-macos-safe-default",
+      "label": "macOS Safe Default",
+      "target": {
+        "os": "macos"
+      },
+      "settings": {
+        "workflow": "toy-i2v",
+        "batchSize": 1,
+        "workers": 0,
+        "amp": false,
+        "compileModels": false,
+        "dataset": "toy_coloring"
+      },
+      "explanation": "Starts with the most reliable local path and avoids CUDA-only or heavy dataset assumptions.",
+      "confidence": "high"
+    },
+    {
+      "id": "profile-openvid-sanity",
+      "label": "OpenVid Sanity Check",
+      "target": {
+        "requiresDataset": "OpenVid-1M"
+      },
+      "settings": {
+        "workflow": "openvid-i2v-lite",
+        "batchSize": 1,
+        "maxIter": 10,
+        "workers": 0,
+        "compileModels": false
+      },
+      "explanation": "Runs minimal validation before any long training job.",
+      "confidence": "high"
+    }
+  ],
+  "cleanup": {
+    "autoUninstallOnFailure": true,
+    "removeResidualFiles": true,
+    "preserveSharedDependencies": true,
+    "preserveDependenciesNeededByReplacement": true
+  }
+}

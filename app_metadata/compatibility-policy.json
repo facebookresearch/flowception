@@ -1,0 +1,194 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-05-15",
+  "project": "flowception",
+  "policyId": "flowception-macos-installer-policy",
+  "scope": {
+    "primaryOs": ["macos"],
+    "primaryArch": ["arm64", "x86_64"],
+    "primaryUseCases": [
+      "toy-debug-runs",
+      "configuration-management",
+      "dataset-prep",
+      "limited-local-inference"
+    ],
+    "nonGoals": [
+      "guaranteed-high-throughput-multi-gpu-training-on-macos",
+      "cuda-only-kernel-support-on-apple-silicon"
+    ]
+  },
+  "confidenceLabels": {
+    "high": "Validated by upstream docs and multiple linked sources",
+    "medium": "Documented but may vary by hardware and exact version",
+    "low": "Unverified community claim, stale source, or failed user outcome"
+  },
+  "evaluation": {
+    "sourceFreshnessWeight": 0.35,
+    "sourceAuthorityWeight": 0.35,
+    "crossSourceAgreementWeight": 0.2,
+    "localValidationWeight": 0.1,
+    "demotionRules": [
+      {
+        "id": "demote-on-user-failure",
+        "condition": "userReportsFailure >= 1",
+        "action": "setConfidenceLow"
+      },
+      {
+        "id": "demote-on-stale-source",
+        "condition": "daysSinceUpdate > 365",
+        "action": "decreaseScoreBy0.2"
+      },
+      {
+        "id": "demote-on-conflicting-docs",
+        "condition": "sourceConflictDetected == true",
+        "action": "setConfidenceLow"
+      }
+    ]
+  },
+  "rules": [
+    {
+      "id": "macos-disable-cuda-only-packages",
+      "severity": "hard_block",
+      "appliesWhen": {
+        "os": ["macos"],
+        "selectedDepsAny": ["flash-attn", "apex", "cuda-only-kernels"]
+      },
+      "message": "Selected package is CUDA-only and not supported on macOS default setups.",
+      "autoRemediation": [
+        "removeDependency",
+        "offerMPSSafeAlternative"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "flowception-macos-performance-warning",
+      "severity": "soft_warn",
+      "appliesWhen": {
+        "os": ["macos"],
+        "workflowAny": ["openvid-i2v", "openvid-t2v", "openvid-interpolate"]
+      },
+      "message": "Full-scale Flowception training configs are typically optimized for Linux + CUDA multi-GPU.",
+      "autoRemediation": [
+        "recommendToyWorkflow",
+        "recommendReducedBatchAndFrames"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "distilled-guidance-autofix",
+      "severity": "auto_fix",
+      "appliesWhen": {
+        "modelVariantAny": ["distilled", "guidance-distilled"]
+      },
+      "message": "Distilled model selected; applying recommended guidance and step settings.",
+      "autoRemediation": [
+        "set.guidanceScale=1.0",
+        "set.numInferenceSteps=8"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "nondistilled-guidance-autofix",
+      "severity": "auto_fix",
+      "appliesWhen": {
+        "modelVariantAny": ["base", "dev", "non-distilled"]
+      },
+      "message": "Non-distilled model selected; applying quality-oriented guidance defaults.",
+      "autoRemediation": [
+        "set.guidanceScale=4.0",
+        "set.numInferenceSteps=40"
+      ],
+      "confidence": "medium"
+    },
+    {
+      "id": "ltx2-not-drop-in-flowception",
+      "severity": "hard_block",
+      "appliesWhen": {
+        "integrationIntent": ["replace-flowception-backbone-with-ltx2-directly"]
+      },
+      "message": "LTX-2 is a separate ecosystem and is not a drop-in replacement for Flowception training configs.",
+      "autoRemediation": [
+        "offerCompanionIntegrationMode"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "dataset-storage-guard-openvid",
+      "severity": "hard_block",
+      "appliesWhen": {
+        "workflowAny": ["openvid-i2v", "openvid-t2v", "openvid-interpolate"],
+        "freeDiskTbLessThan": 5
+      },
+      "message": "Insufficient storage for OpenVid workflows.",
+      "autoRemediation": [
+        "offerOpenVidHDSubset",
+        "offerToyConfigs"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "license-gate",
+      "severity": "hard_block",
+      "appliesWhen": {
+        "licenseAcceptanceRequired": true,
+        "licenseAccepted": false
+      },
+      "message": "License acceptance required before installing this component.",
+      "autoRemediation": [
+        "showLicenseDetails",
+        "collectExplicitConsent"
+      ],
+      "confidence": "high"
+    },
+    {
+      "id": "failed-install-auto-uninstall",
+      "severity": "auto_fix",
+      "appliesWhen": {
+        "installStatus": ["failed", "degraded", "resource-overstress"],
+        "userPreference.autoRemoveFailedComponents": true
+      },
+      "message": "A component failed or destabilized the machine; automatic cleanup initiated.",
+      "autoRemediation": [
+        "uninstallComponent",
+        "removeResidualFilesUnlessShared",
+        "preserveSharedDependencies"
+      ],
+      "confidence": "medium"
+    }
+  ],
+  "workflows": {
+    "recommendedByHardware": [
+      {
+        "hardwareProfile": "macbook-apple-silicon-laptop",
+        "rankedWorkflows": [
+          "toy-i2v",
+          "toy-t2v",
+          "toy-interpolate",
+          "limited-openvid-sanity-check"
+        ],
+        "avoid": [
+          "full-openvid-training-8gpu",
+          "cuda-kernel-dependent-workflows"
+        ],
+        "confidence": "high"
+      },
+      {
+        "hardwareProfile": "linux-nvidia-multi-gpu",
+        "rankedWorkflows": [
+          "openvid-ltx-i2v",
+          "openvid-ltx-t2v",
+          "openvid-ltx-interpolate",
+          "multi-node-accelerate"
+        ],
+        "avoid": [],
+        "confidence": "high"
+      }
+    ]
+  },
+  "uninstallPolicy": {
+    "removeResidualsByDefault": true,
+    "doNotRemoveIfShared": true,
+    "doNotRemoveIfNeededBySelectedReplacement": true,
+    "logAllActions": true
+  }
+}

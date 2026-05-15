@@ -1,0 +1,177 @@
+{
+  "schemaVersion": "1.0.0",
+  "generatedAt": "2026-05-15",
+  "project": "flowception",
+  "monitoringPolicy": {
+    "targetCount": 10,
+    "allowUserAddedSources": true,
+    "maxUserSources": 1000,
+    "updateCadenceHours": 24,
+    "scoreComputation": {
+      "formula": "score = 0.35*authority + 0.25*relevance + 0.2*freshness + 0.1*consistency + 0.1*usability",
+      "range": [0, 1],
+      "promoteThreshold": 0.7,
+      "demoteThreshold": 0.45,
+      "lowConfidenceThreshold": 0.4
+    },
+    "qualitySignals": {
+      "authority": ["official-repo", "official-docs", "first-party-model-card"],
+      "relevance": ["flowception-specific", "ltx-interop", "openvid-data-path", "install-guide"],
+      "freshness": ["last-update-recent", "active-maintainers"],
+      "consistency": ["agrees-with-at-least-2-other-high-authority-sources"],
+      "usability": ["actionable-install-steps", "clear-versioning", "hardware-notes"]
+    }
+  },
+  "topSources": [
+    {
+      "rank": 1,
+      "name": "Flowception GitHub",
+      "url": "https://github.com/facebookresearch/flowception",
+      "category": "official-source-code",
+      "authority": 1.0,
+      "relevance": 1.0,
+      "freshness": 0.9,
+      "consistency": 0.9,
+      "usability": 0.9,
+      "score": 0.95,
+      "confidence": "high"
+    },
+    {
+      "rank": 2,
+      "name": "Flowception Project Page",
+      "url": "https://flowception-meta.github.io/",
+      "category": "official-project",
+      "authority": 0.95,
+      "relevance": 0.95,
+      "freshness": 0.85,
+      "consistency": 0.9,
+      "usability": 0.85,
+      "score": 0.91,
+      "confidence": "high"
+    },
+    {
+      "rank": 3,
+      "name": "Flowception arXiv",
+      "url": "https://arxiv.org/abs/2512.11438",
+      "category": "paper",
+      "authority": 0.9,
+      "relevance": 0.9,
+      "freshness": 0.85,
+      "consistency": 0.85,
+      "usability": 0.7,
+      "score": 0.86,
+      "confidence": "high"
+    },
+    {
+      "rank": 4,
+      "name": "LTX-Video GitHub",
+      "url": "https://github.com/Lightricks/LTX-Video",
+      "category": "upstream-backbone",
+      "authority": 0.95,
+      "relevance": 0.9,
+      "freshness": 0.9,
+      "consistency": 0.85,
+      "usability": 0.9,
+      "score": 0.91,
+      "confidence": "high"
+    },
+    {
+      "rank": 5,
+      "name": "LTX Model Card",
+      "url": "https://huggingface.co/Lightricks/LTX-Video",
+      "category": "model-distribution",
+      "authority": 0.9,
+      "relevance": 0.85,
+      "freshness": 0.9,
+      "consistency": 0.85,
+      "usability": 0.9,
+      "score": 0.88,
+      "confidence": "high"
+    },
+    {
+      "rank": 6,
+      "name": "Diffusers LTX Docs",
+      "url": "https://huggingface.co/docs/diffusers/main/en/api/pipelines/ltx_video",
+      "category": "integration-docs",
+      "authority": 0.9,
+      "relevance": 0.85,
+      "freshness": 0.9,
+      "consistency": 0.9,
+      "usability": 0.85,
+      "score": 0.88,
+      "confidence": "high"
+    },
+    {
+      "rank": 7,
+      "name": "OpenVid Dataset Card",
+      "url": "https://huggingface.co/datasets/nkp37/OpenVid-1M",
+      "category": "dataset",
+      "authority": 0.9,
+      "relevance": 0.9,
+      "freshness": 0.9,
+      "consistency": 0.85,
+      "usability": 0.8,
+      "score": 0.88,
+      "confidence": "high"
+    },
+    {
+      "rank": 8,
+      "name": "OpenVid-1M GitHub",
+      "url": "https://github.com/NJU-PCALab/OpenVid-1M",
+      "category": "dataset-tooling",
+      "authority": 0.85,
+      "relevance": 0.85,
+      "freshness": 0.85,
+      "consistency": 0.8,
+      "usability": 0.85,
+      "score": 0.84,
+      "confidence": "high"
+    },
+    {
+      "rank": 9,
+      "name": "PyTorch Install Docs",
+      "url": "https://pytorch.org/get-started/locally/",
+      "category": "core-framework-install",
+      "authority": 0.95,
+      "relevance": 0.75,
+      "freshness": 0.9,
+      "consistency": 0.9,
+      "usability": 0.95,
+      "score": 0.88,
+      "confidence": "high"
+    },
+    {
+      "rank": 10,
+      "name": "Conda Environment Docs",
+      "url": "https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html",
+      "category": "environment-management",
+      "authority": 0.9,
+      "relevance": 0.75,
+      "freshness": 0.9,
+      "consistency": 0.9,
+      "usability": 0.9,
+      "score": 0.86,
+      "confidence": "high"
+    }
+  ],
+  "demotionAndLabeling": {
+    "lowConfidenceLabel": "Low Confidence",
+    "conditions": [
+      {
+        "id": "user-negative-feedback",
+        "if": "userReportsSourceNotHelpful == true",
+        "then": ["setLowConfidence", "decreaseScoreBy0.25"]
+      },
+      {
+        "id": "uninstall-triggered-failure",
+        "if": "sourceRecommendedComponentCausedFailure == true",
+        "then": ["setLowConfidence", "decreaseScoreBy0.35"]
+      },
+      {
+        "id": "stale-and-unverified",
+        "if": "daysSinceVerified > 180 && noCrossSourceConfirmation == true",
+        "then": ["setLowConfidence", "decreaseScoreBy0.2"]
+      }
+    ]
+  }
+}
