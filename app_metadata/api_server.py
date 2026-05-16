@@ -79,26 +79,37 @@ class RuleEngineHandler(BaseHTTPRequestHandler):
                 self._set_cors_headers()
                 self.send_header("content-type", "application/json")
                 self.end_headers()
-                _ = self.wfile.write(json.dumps(payload, indent=2).encode("utf-8"))
+                payload_bytes = json.dumps(payload, indent=2).encode(
+                    "utf-8"
+                )
+                _ = self.wfile.write(payload_bytes)
             except Exception as e:
                 self.send_response(500)
                 self._set_cors_headers()
                 self.send_header("content-type", "application/json")
                 self.end_headers()
-                error_message = json.dumps({"error": f"Evaluation failed: {e}"})
+                error_message = json.dumps(
+                    {"error": f"Evaluation failed: {e}"}
+                )
                 _ = self.wfile.write(error_message.encode("utf-8"))
         elif self.path == "/health":
             self.send_response(200)
             self._set_cors_headers()
             self.send_header("content-type", "application/json")
             self.end_headers()
-            _ = self.wfile.write(json.dumps({"status": "ok"}).encode("utf-8"))
+            status_payload = json.dumps({"status": "ok"}).encode(
+                "utf-8"
+            )
+            _ = self.wfile.write(status_payload)
         else:
             self.send_response(404)
             self._set_cors_headers()
             self.send_header("content-type", "application/json")
             self.end_headers()
-            _ = self.wfile.write(json.dumps({"error": "Not found"}).encode("utf-8"))
+            not_found_payload = json.dumps({"error": "Not found"}).encode(
+                "utf-8"
+            )
+            _ = self.wfile.write(not_found_payload)
 
     def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
         """Suppress default logging."""
@@ -108,16 +119,23 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run Flowception rule engine as HTTP API."
     )
-    _ = parser.add_argument("--port", type=int, default=8000, help="Port to listen on.")
     _ = parser.add_argument(
-        "--bind", type=str, default="127.0.0.1", help="Address to bind to."
+        "--port",
+        type=int,
+        default=8000,
+        help="Port to listen on.",
+    )
+    _ = parser.add_argument(
+        "--bind",
+        type=str,
+        default="127.0.0.1",
+        help="Address to bind to.",
     )
     args = parser.parse_args()
 
     server = HTTPServer((args.bind, args.port), RuleEngineHandler)
-    print(
-        f"Flowception Rule Engine API listening at " f"http://{args.bind}:{args.port}"
-    )
+    base_url = f"http://{args.bind}:{args.port}"
+    print(f"Flowception Rule Engine API listening at {base_url}")
     print("POST /evaluate with JSON profile to evaluate.")
     print("GET /health for health check.")
     print("Press Ctrl+C to stop.")
