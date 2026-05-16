@@ -20,7 +20,6 @@ venv/
 # IDE
 .idea/
 .vscode/
-.pydevice/
 *.swp
 *.swo
 *~
