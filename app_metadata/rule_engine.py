@@ -248,9 +248,9 @@ def build_source_plan(
 
 def evaluate_profile(
     profile: dict[str, Any],
-    policy_path: Path=BASE_DIR / "compatibility-policy.json",
-    matrix_path: Path=BASE_DIR / "dependency-decision-matrix.json",
-    monitoring_path: Path=BASE_DIR / "source-monitoring.json",
+    policy_path: Path = BASE_DIR / "compatibility-policy.json",
+    matrix_path: Path = BASE_DIR / "dependency-decision-matrix.json",
+    monitoring_path: Path = BASE_DIR / "source-monitoring.json",
 ) -> EvaluationResult:
     policy = _load_json(policy_path)
     matrix = _load_json(matrix_path)
