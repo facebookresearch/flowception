@@ -100,7 +100,7 @@ class RuleEngineHandler(BaseHTTPRequestHandler):
             self.end_headers()
             _ = self.wfile.write(json.dumps({"error": "Not found"}).encode("utf-8"))
 
-    def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
+    def log_message(self, format: str, *args: Any) -> None:
         """Suppress default logging."""
 
 
