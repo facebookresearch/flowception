@@ -20,7 +20,6 @@ venv/
 # IDE
 .idea/
 .vscode/
-.pydevice/
 *.swp
 *.swo
 *~
@@ -41,9 +40,6 @@ snapshots/
 # OS
 .DS_Store
 Thumbs.db
-
-# macOS app bundles
-*.app
 
 # Jupyter
 .ipynb_checkpoints/

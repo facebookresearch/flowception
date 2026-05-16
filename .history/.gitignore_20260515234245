@@ -42,9 +42,6 @@ snapshots/
 .DS_Store
 Thumbs.db
 
-# macOS app bundles
-*.app
-
 # Jupyter
 .ipynb_checkpoints/
 

@@ -64,7 +64,6 @@ class RuleEngineHandler(BaseHTTPRequestHandler):
                 profile: dict[str, Any] = json.loads(body)
             except (ValueError, json.JSONDecodeError) as e:
                 self.send_response(400)
-                self._set_cors_headers()
                 self.send_header("content-type", "application/json")
                 self.end_headers()
                 self.wfile.write(
@@ -76,13 +75,11 @@ class RuleEngineHandler(BaseHTTPRequestHandler):
                 result = evaluate_profile(profile)
                 payload = result_to_dict(result)
                 self.send_response(200)
-                self._set_cors_headers()
                 self.send_header("content-type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps(payload, indent=2).encode("utf-8"))
             except Exception as e:
                 self.send_response(500)
-                self._set_cors_headers()
                 self.send_header("content-type", "application/json")
                 self.end_headers()
                 self.wfile.write(
@@ -95,7 +92,6 @@ class RuleEngineHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"status": "ok"}).encode("utf-8"))
         else:
             self.send_response(404)
-            self._set_cors_headers()
             self.send_header("content-type", "application/json")
             self.end_headers()
             self.wfile.write(json.dumps({"error": "Not found"}).encode("utf-8"))

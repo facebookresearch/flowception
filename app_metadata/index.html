@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flowception Rule Engine UI</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            color: white;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 2.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .panel {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+        }
+
+        .panel h2 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            border-bottom: 2px solid #667eea;
+            padding-bottom: 10px;
+        }
+
+        textarea {
+            width: 100%;
+            height: 400px;
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            font-size: 13px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .results-section {
+            grid-column: 1 / -1;
+            margin-top: 20px;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .result-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .result-card h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .result-card h3::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: #667eea;
+            border-radius: 2px;
+        }
+
+        .result-content {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .result-content pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            margin: 2px;
+        }
+
+        .badge-error {
+            background: #fee;
+            color: #c33;
+        }
+
+        .badge-warning {
+            background: #fef3cd;
+            color: #856404;
+        }
+
+        .badge-success {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .badge-info {
+            background: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error-message {
+            background: #fee;
+            color: #c33;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+
+        .template-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .template-btn {
+            padding: 8px 16px;
+            background: #e0e0e0;
+            border: none;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+
+        .template-btn:hover {
+            background: #d0d0d0;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Flowception Rule Engine</h1>
+        
+        <div class="main-content">
+            <div class="panel">
+                <h2>Profile Input</h2>
+                <div class="template-buttons">
+                    <button class="template-btn" onclick="loadTemplate('basic')">Basic Profile</button>
+                    <button class="template-btn" onclick="loadTemplate('macos')">macOS Profile</button>
+                    <button class="template-btn" onclick="loadTemplate('linux')">Linux Profile</button>
+                    <button class="template-btn" onclick="loadTemplate('gpu')">GPU Profile</button>
+                </div>
+                <textarea id="profileInput" placeholder="Enter your JSON profile here..."></textarea>
+                <div class="button-group">
+                    <button class="btn-primary" onclick="evaluateProfile()">Evaluate Profile</button>
+                    <button class="btn-secondary" onclick="clearInput()">Clear</button>
+                    <button class="btn-secondary" onclick="formatJSON()">Format JSON</button>
+                </div>
+                <div id="error" class="error-message" style="display: none;"></div>
+            </div>
+            
+            <div class="panel">
+                <h2>API Status</h2>
+                <div id="apiStatus">
+                    <button class="btn-secondary" onclick="checkHealth()">Check API Health</button>
+                </div>
+                <div id="healthResult" style="margin-top: 15px;"></div>
+            </div>
+        </div>
+        
+        <div class="results-section panel" id="resultsSection" style="display: none;">
+            <h2>Evaluation Results</h2>
+            <div id="loading" class="loading" style="display: none;">
+                <div class="spinner"></div>
+                <p>Evaluating profile...</p>
+            </div>
+            <div class="results-grid" id="resultsGrid"></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8000';
+
+        const templates = {
+            basic: {
+                os: "linux",
+                arch: "x86_64",
+                selectedDeps: ["pytorch", "numpy"],
+                workflow: ["training"],
+                modelVariant: "base",
+                integrationIntent: "local",
+                freeDiskTb: 1.5,
+                licenseAcceptanceRequired: false,
+                licenseAccepted: true,
+                installStatus: "not_installed",
+                userPreference: {
+                    telemetryEnabled: false,
+                    autoUpdate: true
+                }
+            },
+            macos: {
+                os: "darwin",
+                arch: "arm64",
+                selectedDeps: ["pytorch", "numpy", "tensorflow"],
+                workflow: ["inference"],
+                modelVariant: "large",
+                integrationIntent: "cloud",
+                freeDiskTb: 2.0,
+                licenseAcceptanceRequired: true,
+                licenseAccepted: true,
+                installStatus: "not_installed",
+                userPreference: {
+                    telemetryEnabled: true,
+                    autoUpdate: false
+                }
+            },
+            linux: {
+                os: "linux",
+                arch: "x86_64",
+                selectedDeps: ["pytorch", "cuda"],
+                workflow: ["training", "fine_tuning"],
+                modelVariant: "large",
+                integrationIntent: "local",
+                freeDiskTb: 3.0,
+                licenseAcceptanceRequired: false,
+                licenseAccepted: true,
+                installStatus: "not_installed",
+                userPreference: {
+                    telemetryEnabled: false,
+                    autoUpdate: true
+                }
+            },
+            gpu: {
+                os: "linux",
+                arch: "x86_64",
+                selectedDeps: ["pytorch", "cuda", "nccl"],
+                workflow: ["training", "distributed"],
+                modelVariant: "xl",
+                integrationIntent: "local",
+                freeDiskTb: 5.0,
+                licenseAcceptanceRequired: true,
+                licenseAccepted: true,
+                installStatus: "not_installed",
+                hardwareProfile: "gpu_cluster",
+                userPreference: {
+                    telemetryEnabled: true,
+                    autoUpdate: false,
+                    maxMemoryGb: 64
+                }
+            }
+        };
+
+        function loadTemplate(name) {
+            document.getElementById('profileInput').value = JSON.stringify(templates[name], null, 2);
+        }
+
+        function clearInput() {
+            document.getElementById('profileInput').value = '';
+            document.getElementById('error').style.display = 'none';
+        }
+
+        function formatJSON() {
+            const input = document.getElementById('profileInput').value;
+            try {
+                const parsed = JSON.parse(input);
+                document.getElementById('profileInput').value = JSON.stringify(parsed, null, 2);
+            } catch (e) {
+                showError('Invalid JSON: ' + e.message);
+            }
+        }
+
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('error').style.display = 'none';
+        }
+
+        async function checkHealth() {
+            const resultDiv = document.getElementById('healthResult');
+            resultDiv.innerHTML = '<p>Checking...</p>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                const data = await response.json();
+                
+                if (response.ok) {
+                    resultDiv.innerHTML = `
+                        <div class="badge badge-success">API Healthy</div>
+                        <p style="margin-top: 10px;">Status: ${data.status}</p>
+                    `;
+                } else {
+                    resultDiv.innerHTML = `
+                        <div class="badge badge-error">API Error</div>
+                        <p style="margin-top: 10px;">Status: ${response.status}</p>
+                    `;
+                }
+            } catch (e) {
+                resultDiv.innerHTML = `
+                    <div class="badge badge-error">Connection Failed</div>
+                    <p style="margin-top: 10px;">Error: ${e.message}</p>
+                    <p style="margin-top: 5px; font-size: 12px;">Make sure the API server is running on ${API_BASE}</p>
+                `;
+            }
+        }
+
+        async function evaluateProfile() {
+            hideError();
+            const input = document.getElementById('profileInput').value;
+            
+            if (!input.trim()) {
+                showError('Please enter a JSON profile');
+                return;
+            }
+
+            let profile;
+            try {
+                profile = JSON.parse(input);
+            } catch (e) {
+                showError('Invalid JSON: ' + e.message);
+                return;
+            }
+
+            const resultsSection = document.getElementById('resultsSection');
+            const loading = document.getElementById('loading');
+            const resultsGrid = document.getElementById('resultsGrid');
+            
+            resultsSection.style.display = 'block';
+            loading.style.display = 'block';
+            resultsGrid.innerHTML = '';
+
+            try {
+                const response = await fetch(`${API_BASE}/evaluate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(profile)
+                });
+
+                const data = await response.json();
+
+                loading.style.display = 'none';
+
+                if (!response.ok) {
+                    showError('API Error: ' + (data.error || 'Unknown error'));
+                    return;
+                }
+
+                displayResults(data);
+            } catch (e) {
+                loading.style.display = 'none';
+                showError('Request failed: ' + e.message);
+            }
+        }
+
+        function displayResults(data) {
+            const resultsGrid = document.getElementById('resultsGrid');
+            
+            const sections = [
+                { key: 'triggered_rules', title: 'Triggered Rules', icon: '⚡' },
+                { key: 'blocked_rules', title: 'Blocked Rules', icon: '🚫' },
+                { key: 'warnings', title: 'Warnings', icon: '⚠️' },
+                { key: 'auto_fixes', title: 'Auto Fixes', icon: '🔧' },
+                { key: 'workflow_recommendations', title: 'Workflow Recommendations', icon: '📋' },
+                { key: 'dependency_plan', title: 'Dependency Plan', icon: '📦' },
+                { key: 'source_plan', title: 'Source Plan', icon: '🔍' }
+            ];
+
+            sections.forEach(section => {
+                const value = data[section.key];
+                const card = document.createElement('div');
+                card.className = 'result-card';
+                
+                let content = '';
+                if (Array.isArray(value) && value.length === 0) {
+                    content = '<p style="color: #999; font-style: italic;">None</p>';
+                } else if (typeof value === 'object' && Object.keys(value).length === 0) {
+                    content = '<p style="color: #999; font-style: italic;">None</p>';
+                } else {
+                    content = `<pre>${JSON.stringify(value, null, 2)}</pre>`;
+                }
+
+                card.innerHTML = `
+                    <h3>${section.icon} ${section.title}</h3>
+                    <div class="result-content">${content}</div>
+                `;
+                
+                resultsGrid.appendChild(card);
+            });
+        }
+
+        // Check health on load
+        window.onload = function() {
+            checkHealth();
+            loadTemplate('basic');
+        };
+    </script>
+</body>
+</html>

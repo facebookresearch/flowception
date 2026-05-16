@@ -19,43 +19,6 @@ from rule_engine import evaluate_profile, result_to_dict
 class RuleEngineHandler(BaseHTTPRequestHandler):
     """HTTP handler for rule engine evaluation."""
 
-    def _set_cors_headers(self) -> None:
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-
-    def do_OPTIONS(self) -> None:
-        self.send_response(200)
-        self._set_cors_headers()
-        self.end_headers()
-
-    def do_GET(self) -> None:
-        if self.path == "/":
-            html_path = Path(__file__).parent / "index.html"
-            try:
-                with html_path.open("r", encoding="utf-8") as f:
-                    content = f.read()
-                self.send_response(200)
-                self._set_cors_headers()
-                self.send_header("content-type", "text/html")
-                self.end_headers()
-                self.wfile.write(content.encode("utf-8"))
-            except FileNotFoundError:
-                self.send_response(404)
-                self._set_cors_headers()
-                self.end_headers()
-                self.wfile.write(b"UI not found")
-        elif self.path == "/health":
-            self.send_response(200)
-            self._set_cors_headers()
-            self.send_header("content-type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps({"status": "ok"}).encode("utf-8"))
-        else:
-            self.send_response(404)
-            self._set_cors_headers()
-            self.end_headers()
-
     def do_POST(self) -> None:
         if self.path == "/evaluate":
             content_length = int(self.headers.get("content-length", 0))
@@ -64,7 +27,6 @@ class RuleEngineHandler(BaseHTTPRequestHandler):
                 profile: dict[str, Any] = json.loads(body)
             except (ValueError, json.JSONDecodeError) as e:
                 self.send_response(400)
-                self._set_cors_headers()
                 self.send_header("content-type", "application/json")
                 self.end_headers()
                 self.wfile.write(
@@ -76,13 +38,11 @@ class RuleEngineHandler(BaseHTTPRequestHandler):
                 result = evaluate_profile(profile)
                 payload = result_to_dict(result)
                 self.send_response(200)
-                self._set_cors_headers()
                 self.send_header("content-type", "application/json")
                 self.end_headers()
                 self.wfile.write(json.dumps(payload, indent=2).encode("utf-8"))
             except Exception as e:
                 self.send_response(500)
-                self._set_cors_headers()
                 self.send_header("content-type", "application/json")
                 self.end_headers()
                 self.wfile.write(
@@ -95,10 +55,11 @@ class RuleEngineHandler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps({"status": "ok"}).encode("utf-8"))
         else:
             self.send_response(404)
-            self._set_cors_headers()
             self.send_header("content-type", "application/json")
             self.end_headers()
-            self.wfile.write(json.dumps({"error": "Not found"}).encode("utf-8"))
+            self.wfile.write(
+                json.dumps({"error": "Not found"}).encode("utf-8")
+            )
 
     def log_message(self, format: str, *args: Any) -> None:
         """Suppress default logging."""
@@ -109,7 +70,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run Flowception rule engine as HTTP API."
     )
-    parser.add_argument("--port", type=int, default=8000, help="Port to listen on.")
+    parser.add_argument(
+        "--port", type=int, default=8000, help="Port to listen on."
+    )
     parser.add_argument(
         "--bind", type=str, default="127.0.0.1", help="Address to bind to."
     )
@@ -117,7 +80,8 @@ def main() -> int:
 
     server = HTTPServer((args.bind, args.port), RuleEngineHandler)
     print(
-        f"Flowception Rule Engine API listening at " f"http://{args.bind}:{args.port}"
+        f"Flowception Rule Engine API listening at "
+        f"http://{args.bind}:{args.port}"
     )
     print("POST /evaluate with JSON profile to evaluate.")
     print("GET /health for health check.")
