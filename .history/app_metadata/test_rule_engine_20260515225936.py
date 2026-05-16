@@ -113,9 +113,7 @@ class TestApplies:
         applies_when = {"userPreference.autoRemoveFailedComponents": True}
         assert _applies(applies_when, profile)
 
-        applies_when_false = {
-            "userPreference.autoRemoveFailedComponents": False
-        }
+        applies_when_false = {"userPreference.autoRemoveFailedComponents": False}
         assert not _applies(applies_when_false, profile)
 
 
@@ -163,10 +161,7 @@ class TestEvaluatePolicy:
                     "severity": "auto_fix",
                     "appliesWhen": {"modelVariant": "distilled"},
                     "message": "Setting distilled defaults",
-                    "autoRemediation": [
-                        "set.guidanceScale=1.0",
-                        "set.numInferenceSteps=8",
-                    ],
+                    "autoRemediation": ["set.guidanceScale=1.0", "set.numInferenceSteps=8"],
                 }
             ]
         }

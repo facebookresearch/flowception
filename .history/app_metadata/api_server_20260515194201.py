@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from http.server import BaseHTTPRequestHandler, HTTPServer
+from pathlib import Path
 from typing import Any
 
 from rule_engine import evaluate_profile, result_to_dict
@@ -28,9 +30,7 @@ class RuleEngineHandler(BaseHTTPRequestHandler):
                 self.send_response(400)
                 self.send_header("content-type", "application/json")
                 self.end_headers()
-                self.wfile.write(
-                    json.dumps({"error": f"Invalid JSON: {e}"}).encode("utf-8")
-                )
+                self.wfile.write(json.dumps({"error": f"Invalid JSON: {e}"}).encode("utf-8"))
                 return
 
             try:
@@ -44,9 +44,7 @@ class RuleEngineHandler(BaseHTTPRequestHandler):
                 self.send_response(500)
                 self.send_header("content-type", "application/json")
                 self.end_headers()
-                self.wfile.write(
-                    json.dumps({"error": f"Evaluation failed: {e}"}).encode("utf-8")
-                )
+                self.wfile.write(json.dumps({"error": f"Evaluation failed: {e}"}).encode("utf-8"))
         elif self.path == "/health":
             self.send_response(200)
             self.send_header("content-type", "application/json")
@@ -56,9 +54,7 @@ class RuleEngineHandler(BaseHTTPRequestHandler):
             self.send_response(404)
             self.send_header("content-type", "application/json")
             self.end_headers()
-            self.wfile.write(
-                json.dumps({"error": "Not found"}).encode("utf-8")
-            )
+            self.wfile.write(json.dumps({"error": "Not found"}).encode("utf-8"))
 
     def log_message(self, format: str, *args: Any) -> None:
         """Suppress default logging."""
@@ -66,22 +62,13 @@ class RuleEngineHandler(BaseHTTPRequestHandler):
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Run Flowception rule engine as HTTP API."
-    )
-    parser.add_argument(
-        "--port", type=int, default=8000, help="Port to listen on."
-    )
-    parser.add_argument(
-        "--bind", type=str, default="127.0.0.1", help="Address to bind to."
-    )
+    parser = argparse.ArgumentParser(description="Run Flowception rule engine as HTTP API.")
+    parser.add_argument("--port", type=int, default=8000, help="Port to listen on.")
+    parser.add_argument("--bind", type=str, default="127.0.0.1", help="Address to bind to.")
     args = parser.parse_args()
 
     server = HTTPServer((args.bind, args.port), RuleEngineHandler)
-    print(
-        f"Flowception Rule Engine API listening at "
-        f"http://{args.bind}:{args.port}"
-    )
+    print(f"Flowception Rule Engine API listening at http://{args.bind}:{args.port}")
     print("POST /evaluate with JSON profile to evaluate.")
     print("GET /health for health check.")
     print("Press Ctrl+C to stop.")

@@ -236,9 +236,7 @@ def build_source_plan(
         key=lambda x: x.get("effectiveScore", 0.0),
         reverse=True,
     )
-    target_count = monitoring.get("monitoringPolicy", {}).get(
-        "targetCount", 10
-    )
+    target_count = monitoring.get("monitoringPolicy", {}).get("targetCount", 10)
 
     return {
         "topRanked": evaluated[:target_count],

@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import platform
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -105,15 +106,11 @@ def interactive_prompt(profile: dict[str, Any]) -> dict[str, Any]:
     print(f"Detected: {profile['hardwareProfile']} ({profile['arch']})")
     print(f"Free disk: {profile['freeDiskTb']} TB")
 
-    override = input(
-        "\nOverride workflow? (leave blank for 'toy-i2v'): "
-    ).strip()
+    override = input("\nOverride workflow? (leave blank for 'toy-i2v'): ").strip()
     if override:
         profile["workflow"] = [override]
 
-    override = input(
-        "Override model variant? (leave blank for 'distilled'): "
-    ).strip()
+    override = input("Override model variant? (leave blank for 'distilled'): ").strip()
     if override:
         profile["modelVariant"] = override
 
@@ -126,15 +123,9 @@ def interactive_prompt(profile: dict[str, Any]) -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Generate Flowception installer profile."
-    )
-    parser.add_argument(
-        "--output", type=str, default="", help="Output JSON file path."
-    )
-    parser.add_argument(
-        "--interactive", action="store_true", help="Prompt for overrides."
-    )
+    parser = argparse.ArgumentParser(description="Generate Flowception installer profile.")
+    parser.add_argument("--output", type=str, default="", help="Output JSON file path.")
+    parser.add_argument("--interactive", action="store_true", help="Prompt for overrides.")
     args = parser.parse_args()
 
     profile = detect_macos_specs()

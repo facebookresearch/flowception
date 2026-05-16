@@ -79,8 +79,7 @@ def main() -> int:
 
     server = HTTPServer((args.bind, args.port), RuleEngineHandler)
     print(
-        f"Flowception Rule Engine API listening at "
-        f"http://{args.bind}:{args.port}"
+        f"Flowception Rule Engine API listening at http://{args.bind}:{args.port}"
     )
     print("POST /evaluate with JSON profile to evaluate.")
     print("GET /health for health check.")
