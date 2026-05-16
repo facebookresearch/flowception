@@ -50,7 +50,7 @@ class RuleEngineHandler(BaseHTTPRequestHandler):
             self._set_cors_headers()
             self.send_header("content-type", "application/json")
             self.end_headers()
-            _ = self.wfile.write(json.dumps({"status": "ok"}).encode("utf-8"))
+            self.wfile.write(json.dumps({"status": "ok"}).encode("utf-8"))
         else:
             self.send_response(404)
             self._set_cors_headers()
@@ -85,8 +85,9 @@ class RuleEngineHandler(BaseHTTPRequestHandler):
                 self._set_cors_headers()
                 self.send_header("content-type", "application/json")
                 self.end_headers()
-                error_message = json.dumps({"error": f"Evaluation failed: {e}"})
-                _ = self.wfile.write(error_message.encode("utf-8"))
+                _ = self.wfile.write(
+                    json.dumps({"error": f"Evaluation failed: {e}"}).encode("utf-8")
+                )
         elif self.path == "/health":
             self.send_response(200)
             self._set_cors_headers()
@@ -108,8 +109,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(
         description="Run Flowception rule engine as HTTP API."
     )
-    _ = parser.add_argument("--port", type=int, default=8000, help="Port to listen on.")
-    _ = parser.add_argument(
+    parser.add_argument("--port", type=int, default=8000, help="Port to listen on.")
+    parser.add_argument(
         "--bind", type=str, default="127.0.0.1", help="Address to bind to."
     )
     args = parser.parse_args()

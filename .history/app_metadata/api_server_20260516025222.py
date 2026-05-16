@@ -85,8 +85,9 @@ class RuleEngineHandler(BaseHTTPRequestHandler):
                 self._set_cors_headers()
                 self.send_header("content-type", "application/json")
                 self.end_headers()
-                error_message = json.dumps({"error": f"Evaluation failed: {e}"})
-                _ = self.wfile.write(error_message.encode("utf-8"))
+                _ = self.wfile.write(
+                    json.dumps({"error": f"Evaluation failed: {e}"}).encode("utf-8")
+                )
         elif self.path == "/health":
             self.send_response(200)
             self._set_cors_headers()
