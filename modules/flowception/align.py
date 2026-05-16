@@ -1,5 +1,6 @@
 import torch
 
+
 def left_align_frames(x, padding_index=0):
     """
     Move padding frames (where all pixels == padding_index) to the end, preserving order of non-padding frames.
@@ -85,6 +86,7 @@ def compute_insert_counts(insert_site_mask: torch.Tensor, flow_site_mask: torch.
     # 6) everywhere i isn’t a real frame, set -1
     counts = torch.where(flow_site_mask, counts, torch.full_like(counts, -1))
     return counts
+
 
 def strip(Y, M):
     # Y: [B, L, D], M: [B, L]

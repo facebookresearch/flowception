@@ -27,11 +27,13 @@ def parse_args_and_main_args(**parser_kwargs):
     parser.add_argument("--use_ampere", action="store_true", help="Request A100 GPUs")
     parser.add_argument("--comment", default="", type=str, help="Comment for job scheduler")
     parser.add_argument("--job_name", default="Flowception", type=str, help="Job name for SLURM")
-    
+
     parser.add_argument("--mem_gb", type=int, help="CPU memory per gpu", default=0)
     parser.add_argument("--deepspeed", action="store_true", help="Use deepspeed")
     parser.add_argument("--cluster_type", default="slurm", choices=["slurm", "local", "debug"])
-    parser.add_argument("--cluster", default="default", type=str, help="Cluster name (used for run ID generation)")
+    parser.add_argument(
+        "--cluster", default="default", type=str, help="Cluster name (used for run ID generation)"
+    )
     parser.add_argument("--accelerate_debug", action="store_true")
     parser.add_argument(
         "--autoencoder_training",
@@ -95,13 +97,10 @@ class Task(submitit.helpers.Checkpointable):
 
         # uncomment this block to provide extra env variables
         extra_env_vars = {
-
             "FI_EFA_SET_CUDA_SYNC_MEMOPS": "0",
             # "NCCL_SOCKET_IFNAME": "en",
             "FI_EFA_USE_HUGE_PAGE": "0",
             "FI_EFA_FORK_SAFE": "1",
-
-
             "MKL_THREADING_LAYER": "OMP",
         }
         os.environ.update(**extra_env_vars)
@@ -132,9 +131,7 @@ class Task(submitit.helpers.Checkpointable):
                         f.write(f"{host} slots={self.args.ngpus}\n")
                 print(f"Created hostfile: {hostfile}")
             accelerate_options += (
-                f"--use_deepspeed "
-                f"--deepspeed_hostfile {hostfile} "
-                f"--deepspeed_multinode_launcher standard "
+                f"--use_deepspeed --deepspeed_hostfile {hostfile} --deepspeed_multinode_launcher standard "
             )
 
         if self.args.accelerate_debug:

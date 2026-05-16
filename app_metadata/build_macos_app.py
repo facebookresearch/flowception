@@ -10,9 +10,7 @@ from pathlib import Path
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Build Flowception native .app (non-web) with PyInstaller."
-    )
+    parser = argparse.ArgumentParser(description="Build Flowception native .app (non-web) with PyInstaller.")
     parser.add_argument(
         "--name",
         type=str,

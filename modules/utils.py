@@ -109,7 +109,6 @@ class MixedCheckpointFunction(torch.autograd.Function):
         }
 
         with torch.enable_grad(), torch.cuda.amp.autocast(**ctx.gpu_autocast_kwargs):
-
             shallow_copies = {
                 key: ctx.input_tensors[key].view_as(ctx.input_tensors[key]) for key in ctx.input_tensors
             }
@@ -168,7 +167,6 @@ class CheckpointFunction(torch.autograd.Function):
     def backward(ctx, *output_grads):
         ctx.input_tensors = [x.detach().requires_grad_(True) for x in ctx.input_tensors]
         with torch.enable_grad(), torch.cuda.amp.autocast(**ctx.gpu_autocast_kwargs):
-
             shallow_copies = [x.view_as(x) for x in ctx.input_tensors]
             output_tensors = ctx.run_function(*shallow_copies)
         input_grads = torch.autograd.grad(

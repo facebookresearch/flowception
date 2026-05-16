@@ -220,8 +220,6 @@
 #         return self._fetch_one()
 
 
-
-
 # taichi_inmemory_per_worker.py
 import os, joblib, numpy as np, torch, tqdm
 from torch.utils.data import Dataset, get_worker_info
@@ -229,13 +227,16 @@ from collections import OrderedDict
 
 from decord import VideoReader, cpu
 from decord import bridge as decord_bridge
-decord_bridge.set_bridge('torch')
+
+decord_bridge.set_bridge("torch")
 
 from engine.data_classes import Datapoint
+
 
 def _get_rank_world_size():
     try:
         import torch.distributed as dist
+
         if dist.is_available() and dist.is_initialized():
             return dist.get_rank(), dist.get_world_size()
     except Exception:
@@ -243,6 +244,7 @@ def _get_rank_world_size():
     r = int(os.environ.get("RANK", os.environ.get("SLURM_PROCID", 0)))
     w = int(os.environ.get("WORLD_SIZE", os.environ.get("SLURM_NTASKS", 1)))
     return r, max(w, 1)
+
 
 class TaichiInMemoryFlowception(Dataset):
     """
@@ -252,7 +254,7 @@ class TaichiInMemoryFlowception(Dataset):
 
     def __init__(
         self,
-        annotations_dir: str,            # dir of .pt shards OR a single .pt
+        annotations_dir: str,  # dir of .pt shards OR a single .pt
         width: int,
         height: int,
         num_frames: int = 72,
@@ -260,19 +262,19 @@ class TaichiInMemoryFlowception(Dataset):
         native_fps: float = 24.0,
         num_start_frames: int = 2,
         latent_downsample: int = 8,
-        pick_files: int | None = None,   # subsample shards before load (optional)
+        pick_files: int | None = None,  # subsample shards before load (optional)
         max_retries: int = 20,
         seed: int = 12345,
         verbose: bool = True,
         min_motion_score: float | None = None,
     ):
-        self.width  = int(width)
+        self.width = int(width)
         self.height = int(height)
         self.sampling_fps = float(sampling_fps)
-        self.native_fps   = float(native_fps)
-        self.num_start_frames  = int(num_start_frames)   # k
+        self.native_fps = float(native_fps)
+        self.num_start_frames = int(num_start_frames)  # k
         self.latent_downsample = int(latent_downsample)  # ld
-        self.max_retries       = int(max_retries)
+        self.max_retries = int(max_retries)
         self.seed = int(seed)
         self.verbose = bool(verbose)
 
@@ -308,16 +310,16 @@ class TaichiInMemoryFlowception(Dataset):
         ld = self.latent_downsample
         rem = (T_req - 1) % ld
         if rem != 0:
-            T_req += (ld - rem)
+            T_req += ld - rem
             if verbose:
                 print(f"[TaichiPerWorker] aligning num_frames -> {T_req} (1 + n*{ld})")
         self.num_frames = T_req
 
         # ----- worker-local state (populated lazily in the worker) -----
         self._worker_ready = False
-        self._entries = None            # this worker's shard of entries
-        self._videos_u8 = None          # list[torch.uint8 [L,H,W,3]]
-        self._descs = None              # list[str]
+        self._entries = None  # this worker's shard of entries
+        self._videos_u8 = None  # list[torch.uint8 [L,H,W,3]]
+        self._descs = None  # list[str]
         self._rng = None
 
     def _lazy_worker_init(self):
@@ -341,12 +343,12 @@ class TaichiInMemoryFlowception(Dataset):
             # still set ready to avoid trying again
             self._entries = []
             self._videos_u8, self._descs = [], []
-            self._rng = np.random.RandomState(self.seed + 17*rank + 1009*worker_id)
+            self._rng = np.random.RandomState(self.seed + 17 * rank + 1009 * worker_id)
             self._worker_ready = True
             return
 
         # RNG per (rank, worker)
-        self._rng = np.random.RandomState(self.seed + 17*rank + 1009*worker_id)
+        self._rng = np.random.RandomState(self.seed + 17 * rank + 1009 * worker_id)
 
         # ----- preload only this shard into RAM (uint8) -----
         vids, descs = [], []
@@ -356,8 +358,7 @@ class TaichiInMemoryFlowception(Dataset):
             desc = it.get("description", "") or ""
             if not os.path.isfile(path):
                 continue
-            vr = VideoReader(path, num_threads=1, ctx=cpu(0),
-                             width=self.width, height=self.height)
+            vr = VideoReader(path, num_threads=1, ctx=cpu(0), width=self.width, height=self.height)
             L = len(vr)
             if L < 1:
                 continue
@@ -366,15 +367,17 @@ class TaichiInMemoryFlowception(Dataset):
             descs.append(desc)
             total_bytes += frames_u8.numel()  # uint8 -> bytes
 
-        self._entries   = entries
+        self._entries = entries
         self._videos_u8 = vids
-        self._descs     = descs
+        self._descs = descs
         self._worker_ready = True
 
         if self.verbose and get_worker_info() is not None:
             gb = total_bytes / (1024**3)
-            print(f"[TaichiPerWorker][rank {rank} worker {worker_id}] "
-                  f"preloaded {len(vids)} / {len(entries)} videos; ~{gb:.2f} GiB uint8")
+            print(
+                f"[TaichiPerWorker][rank {rank} worker {worker_id}] "
+                f"preloaded {len(vids)} / {len(entries)} videos; ~{gb:.2f} GiB uint8"
+            )
 
     def __len__(self):
         return 5_000_000  # streaming-style
@@ -383,9 +386,9 @@ class TaichiInMemoryFlowception(Dataset):
     def _sample_from_frames(self, frames_u8: torch.Tensor, desc: str):
         L_total = int(frames_u8.shape[0])
         ld = self.latent_downsample
-        k  = self.num_start_frames
-        s  = self.frame_stride
-        T  = self.num_frames
+        k = self.num_start_frames
+        s = self.frame_stride
+        T = self.num_frames
 
         max_valid = 1 + (L_total - 1) // s
         min_latents = k + 2
@@ -412,12 +415,13 @@ class TaichiInMemoryFlowception(Dataset):
             frames = frames_valid
             frame_indices = idx_valid
 
-        frame_mask    = torch.zeros(T, dtype=torch.bool); frame_mask[:L] = True
+        frame_mask = torch.zeros(T, dtype=torch.bool)
+        frame_mask[:L] = True
         latent_length = 1 + (L - 1) // ld
 
-        img_tensor    = frames.permute(3, 0, 1, 2).contiguous()
+        img_tensor = frames.permute(3, 0, 1, 2).contiguous()
         anchor_tensor = frames_valid[:1].permute(3, 0, 1, 2).contiguous()
-        crop_coords   = torch.zeros(8)
+        crop_coords = torch.zeros(8)
 
         return Datapoint(
             pixel_values=img_tensor,
@@ -443,7 +447,7 @@ class TaichiInMemoryFlowception(Dataset):
 
         j = int(self._rng.randint(0, len(self._videos_u8)))
         frames_u8 = self._videos_u8[j]
-        desc      = self._descs[j]
+        desc = self._descs[j]
         return self._sample_from_frames(frames_u8, desc)
 
     def __getitem__(self, idx):

@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Unit tests for the rule engine."""
 
+# pylint: disable=import-error
+
 from __future__ import annotations
 
-import pytest
+import pytest  # type: ignore[import-not-found]
 
-from rule_engine import (
+from app_metadata.rule_engine import (
     EvaluationResult,
     _applies,
     _intersects,
@@ -17,7 +19,6 @@ from rule_engine import (
 
 
 class TestIntersects:
-
     def test_empty_lists(self) -> None:
         assert not _intersects([], [])
 
@@ -32,30 +33,39 @@ class TestIntersects:
 
 
 class TestParseSetAction:
-
     def test_valid_int(self) -> None:
-        key, value = _parse_set_action("set.numInferenceSteps=40")
+        parsed = _parse_set_action("set.numInferenceSteps=40")
+        assert parsed is not None
+        key, value = parsed
         assert key == "numInferenceSteps"
         assert value == 40
         assert isinstance(value, int)
 
     def test_valid_float(self) -> None:
-        key, value = _parse_set_action("set.guidanceScale=1.5")
+        parsed = _parse_set_action("set.guidanceScale=1.5")
+        assert parsed is not None
+        key, value = parsed
         assert key == "guidanceScale"
         assert abs(value - 1.5) < 0.01
 
     def test_valid_bool_true(self) -> None:
-        key, value = _parse_set_action("set.enabled=true")
+        parsed = _parse_set_action("set.enabled=true")
+        assert parsed is not None
+        key, value = parsed
         assert key == "enabled"
         assert value is True
 
     def test_valid_bool_false(self) -> None:
-        key, value = _parse_set_action("set.disabled=false")
+        parsed = _parse_set_action("set.disabled=false")
+        assert parsed is not None
+        key, value = parsed
         assert key == "disabled"
         assert value is False
 
     def test_string_value(self) -> None:
-        key, value = _parse_set_action("set.model=distilled")
+        parsed = _parse_set_action("set.model=distilled")
+        assert parsed is not None
+        key, value = parsed
         assert key == "model"
         assert value == "distilled"
 
@@ -69,7 +79,6 @@ class TestParseSetAction:
 
 
 class TestApplies:
-
     def test_empty_applies_when(self) -> None:
         assert _applies({}, {"os": "macos"})
 
@@ -113,14 +122,11 @@ class TestApplies:
         applies_when = {"userPreference.autoRemoveFailedComponents": True}
         assert _applies(applies_when, profile)
 
-        applies_when_false = {
-            "userPreference.autoRemoveFailedComponents": False
-        }
+        applies_when_false = {"userPreference.autoRemoveFailedComponents": False}
         assert not _applies(applies_when_false, profile)
 
 
 class TestEvaluatePolicy:
-
     def test_no_matching_rules(self) -> None:
         policy = {
             "rules": [
@@ -178,7 +184,6 @@ class TestEvaluatePolicy:
 
 
 class TestResultToDict:
-
     def test_conversion(self) -> None:
         result = EvaluationResult(
             triggered_rules=[{"id": "rule1", "severity": "warn"}],
@@ -196,7 +201,6 @@ class TestResultToDict:
 
 
 class TestEvaluateProfile:
-
     def test_with_sample_profile(self) -> None:
         """Test evaluation with a minimal profile."""
         profile = {

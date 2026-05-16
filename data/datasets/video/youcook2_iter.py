@@ -6,7 +6,8 @@ from torch.utils.data import IterableDataset, get_worker_info
 from collections import OrderedDict
 from decord import VideoReader, cpu, gpu
 from decord import bridge as decord_bridge
-decord_bridge.set_bridge('torch')
+
+decord_bridge.set_bridge("torch")
 
 from engine.data_classes import Datapoint
 
@@ -36,7 +37,7 @@ class YouCook2IterFlowception(IterableDataset):
 
     def __init__(
         self,
-        annotations,                 # list[dict] or path to .pt/.pkl/.joblib/.json
+        annotations,  # list[dict] or path to .pt/.pkl/.joblib/.json
         vid_root: str,
         width: int,
         height: int,
@@ -48,7 +49,7 @@ class YouCook2IterFlowception(IterableDataset):
         # segment filtering (ensure enough frames for Flowception)
         drop_too_short: bool = True,
         # sharding & ordering
-        shard_style: str = "interleaved",   # or "contiguous"
+        shard_style: str = "interleaved",  # or "contiguous"
         shuffle_videos: bool = False,
         shuffle_segments: bool = False,
         base_seed: int = 123,
@@ -82,7 +83,12 @@ class YouCook2IterFlowception(IterableDataset):
 
         # Pre-filter segments if desired (saves retries during iteration)
         if drop_too_short:
-            ld, k, s, nfps = int(self.latent_downsample), int(self.num_start_frames), int(self.frame_stride), float(self.native_fps)
+            ld, k, s, nfps = (
+                int(self.latent_downsample),
+                int(self.num_start_frames),
+                int(self.frame_stride),
+                float(self.native_fps),
+            )
             # need at least ld*k + 1 latent samples -> raw frames >= s*(ld*k)+1
             min_seg_frames = s * (ld * k) + 1
             min_seconds = min_seg_frames / nfps
@@ -95,7 +101,8 @@ class YouCook2IterFlowception(IterableDataset):
             segs_all = it.get("caption", []) or []
             segs = []
             for sgm in segs_all:
-                st = sgm.get("start", None); en = sgm.get("end", None)
+                st = sgm.get("start", None)
+                en = sgm.get("end", None)
                 if isinstance(st, (int, float)) and isinstance(en, (int, float)) and en > st:
                     if (en - st) + 1e-6 >= min_seconds:
                         segs.append(sgm)
@@ -107,8 +114,10 @@ class YouCook2IterFlowception(IterableDataset):
             if segs:
                 cleaned.append({"filename": it["filename"], "segments": segs})
         self.entries = cleaned
-        print(f"[YouCook2Iter] videos with ≥1 valid segment: {len(self.entries)} | "
-              f"segments kept: {kept}, dropped: {dropped}")
+        print(
+            f"[YouCook2Iter] videos with ≥1 valid segment: {len(self.entries)} | "
+            f"segments kept: {kept}, dropped: {dropped}"
+        )
 
         # Sharding & ordering
         self._shard_style = shard_style
@@ -119,14 +128,14 @@ class YouCook2IterFlowception(IterableDataset):
 
         # Decode knobs
         self._reader_cache_size = int(reader_cache_size)
-        self._vr_num_threads = -1 #int(vr_num_threads)
+        self._vr_num_threads = -1  # int(vr_num_threads)
         self._use_gpu_decode = bool(use_gpu_decode)
         self._gpu_device_id = gpu_device_id
 
         # Late-initialized per-worker state
-        self._vr_cache = None               # OrderedDict[str, VideoReader]
-        self._my_videos = None              # list of (filename, segments)
-        self._rng = None                    # random.Random per worker/epoch
+        self._vr_cache = None  # OrderedDict[str, VideoReader]
+        self._my_videos = None  # list of (filename, segments)
+        self._rng = None  # random.Random per worker/epoch
 
     # ---------- public controls ----------
 
@@ -190,10 +199,13 @@ class YouCook2IterFlowception(IterableDataset):
             cache.move_to_end(path)
             return vr
         ctx, _ = self._ctx_and_device()
-        vr = VideoReader(path,
-                         num_threads=-1, #self._vr_num_threads,
-                         ctx=cpu(0), #ctx,
-                         width=self.width, height=self.height)
+        vr = VideoReader(
+            path,
+            num_threads=-1,  # self._vr_num_threads,
+            ctx=cpu(0),  # ctx,
+            width=self.width,
+            height=self.height,
+        )
         cache[path] = vr
         if len(cache) > self._reader_cache_size:
             cache.popitem(last=False)
@@ -260,8 +272,8 @@ class YouCook2IterFlowception(IterableDataset):
 
                     idx_valid = np.arange(start, start + valid_len * s, s, dtype=np.int64)
 
-                    frames_valid = reader.get_batch(idx_valid)         # [L,H,W,3] torch uint8
-                    anchor = frames_valid[:1]                           # [1,H,W,3]
+                    frames_valid = reader.get_batch(idx_valid)  # [L,H,W,3] torch uint8
+                    anchor = frames_valid[:1]  # [1,H,W,3]
 
                     # pad by repeating last
                     if valid_len < T:

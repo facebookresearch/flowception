@@ -146,8 +146,7 @@ class FlowceptionDesktopApp:
             if blocked_count > 0:
                 messagebox.showwarning(
                     "Blocked",
-                    f"{blocked_count} hard-block rules triggered.\n"
-                    f"Warnings: {warnings_count}",
+                    f"{blocked_count} hard-block rules triggered.\nWarnings: {warnings_count}",
                 )
         except Exception as exc:
             messagebox.showerror("Evaluation failed", str(exc))

@@ -67,9 +67,7 @@ class RuleEngineHandler(BaseHTTPRequestHandler):
                 self._set_cors_headers()
                 self.send_header("content-type", "application/json")
                 self.end_headers()
-                _ = self.wfile.write(
-                    json.dumps({"error": f"Invalid JSON: {e}"}).encode("utf-8")
-                )
+                _ = self.wfile.write(json.dumps({"error": f"Invalid JSON: {e}"}).encode("utf-8"))
                 return
 
             try:
@@ -79,36 +77,28 @@ class RuleEngineHandler(BaseHTTPRequestHandler):
                 self._set_cors_headers()
                 self.send_header("content-type", "application/json")
                 self.end_headers()
-                payload_bytes = json.dumps(payload, indent=2).encode(
-                    "utf-8"
-                )
+                payload_bytes = json.dumps(payload, indent=2).encode("utf-8")
                 _ = self.wfile.write(payload_bytes)
             except Exception as e:
                 self.send_response(500)
                 self._set_cors_headers()
                 self.send_header("content-type", "application/json")
                 self.end_headers()
-                error_message = json.dumps(
-                    {"error": f"Evaluation failed: {e}"}
-                )
+                error_message = json.dumps({"error": f"Evaluation failed: {e}"})
                 _ = self.wfile.write(error_message.encode("utf-8"))
         elif self.path == "/health":
             self.send_response(200)
             self._set_cors_headers()
             self.send_header("content-type", "application/json")
             self.end_headers()
-            status_payload = json.dumps({"status": "ok"}).encode(
-                "utf-8"
-            )
+            status_payload = json.dumps({"status": "ok"}).encode("utf-8")
             _ = self.wfile.write(status_payload)
         else:
             self.send_response(404)
             self._set_cors_headers()
             self.send_header("content-type", "application/json")
             self.end_headers()
-            not_found_payload = json.dumps({"error": "Not found"}).encode(
-                "utf-8"
-            )
+            not_found_payload = json.dumps({"error": "Not found"}).encode("utf-8")
             _ = self.wfile.write(not_found_payload)
 
     def log_message(self, message_format: str, *args: Any) -> None:
@@ -116,9 +106,7 @@ class RuleEngineHandler(BaseHTTPRequestHandler):
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Run Flowception rule engine as HTTP API."
-    )
+    parser = argparse.ArgumentParser(description="Run Flowception rule engine as HTTP API.")
     _ = parser.add_argument(
         "--port",
         type=int,

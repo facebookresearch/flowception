@@ -9,7 +9,8 @@ from engine.data_classes import Datapoint
 from torch.utils.data import get_worker_info
 
 from decord import bridge as decord_bridge
-decord_bridge.set_bridge('torch')  # call once at import time (e.g., top of file)
+
+decord_bridge.set_bridge("torch")  # call once at import time (e.g., top of file)
 
 
 class YouCook2Flowception(Dataset):
@@ -42,20 +43,21 @@ class YouCook2Flowception(Dataset):
 
     def __init__(
         self,
-        annotations,                  # list[dict] OR path to .pt/.pkl/.joblib/.json
+        annotations,  # list[dict] OR path to .pt/.pkl/.joblib/.json
         vid_root: str,
         width: int,
         height: int,
         num_frames: int = 72,
-        sampling_fps: float = 24.0,   # the ONLY fps you set
-        native_fps: float = 24.0,     # assumed fps of encoded videos
+        sampling_fps: float = 24.0,  # the ONLY fps you set
+        native_fps: float = 24.0,  # assumed fps of encoded videos
         pick_videos: int | None = None,
         # Flowception/training knobs
         num_start_frames: int = 2,
         latent_downsample: int = 8,
         max_retries: int = 20,
-    # ):
-        shard_style: str ="contiguous"): # "interleaved"):  # or "contiguous"
+        # ):
+        shard_style: str = "contiguous",
+    ):  # "interleaved"):  # or "contiguous"
         # Load annotations if a path was provided
         if isinstance(annotations, str):
             if annotations.endswith((".pt", ".pkl", ".joblib")):
@@ -95,7 +97,7 @@ class YouCook2Flowception(Dataset):
 
         self.num_start_frames = int(num_start_frames)
         self.latent_downsample = int(latent_downsample)
-        
+
         # --- enforce T = 1 + n*ld (first frame + groups of ld) ---
         # ld = int(self.latent_downsample)
         # if self.num_frames <= 1:
@@ -104,7 +106,7 @@ class YouCook2Flowception(Dataset):
         #     T_aligned = 1 + ((self.num_frames - 1) // ld) * ld
         #     print(f"[info] aligning num_frames from {self.num_frames} -> {T_aligned} (1 + n*{ld})")
         #     self.num_frames = T_aligned
-            
+
         ld = int(self.latent_downsample)
         if self.num_frames <= 1:
             raise ValueError("num_frames must be >= 2 for first+groups-of-ld rule")
@@ -112,27 +114,23 @@ class YouCook2Flowception(Dataset):
         # CEIL to keep 73 when user passes 72
         rem = (self.num_frames - 1) % ld
         if rem != 0:
-            T_aligned = self.num_frames + (ld - rem)          # == 1 + ceil((T-1)/ld)*ld
+            T_aligned = self.num_frames + (ld - rem)  # == 1 + ceil((T-1)/ld)*ld
             print(f"[info] aligning num_frames from {self.num_frames} -> {T_aligned} (1 + n*{ld})")
             self.num_frames = T_aligned
 
-
         # --- stronger segment filter: require min latents at this stride ---
         k = int(self.num_start_frames)
-        min_latents = k + 2                               # your training requirement
+        min_latents = k + 2  # your training requirement
         s = int(self.frame_stride)
         nfps = float(self.native_fps)
 
-        min_valid_needed   = 1 + (min_latents - 1) * ld         # RGB frames you must actually sample
-        raw_frames_needed  = 1 + (min_valid_needed - 1) * s     # raw frames in the encoded video at stride s
-        min_seconds        = raw_frames_needed / nfps
-        
-        
-        
+        min_valid_needed = 1 + (min_latents - 1) * ld  # RGB frames you must actually sample
+        raw_frames_needed = 1 + (min_valid_needed - 1) * s  # raw frames in the encoded video at stride s
+        min_seconds = raw_frames_needed / nfps
+
         self.max_retries = int(max_retries)
-        self.blank_value=0
-        
-        
+        self.blank_value = 0
+
         # after: self.frame_stride = max(1, stride)
         # ld = int(self.latent_downsample)
         # k  = int(self.num_start_frames)
@@ -149,9 +147,10 @@ class YouCook2Flowception(Dataset):
             segs_all = it.get("caption", []) or []
             segs = []
             for sgm in segs_all:
-                st = sgm.get("start", None); en = sgm.get("end", None)
+                st = sgm.get("start", None)
+                en = sgm.get("end", None)
                 if isinstance(st, (int, float)) and isinstance(en, (int, float)) and en > st:
-                    if (en - st) + 1e-6 >= min_seconds:   # tiny epsilon for rounding
+                    if (en - st) + 1e-6 >= min_seconds:  # tiny epsilon for rounding
                         segs.append(sgm)
                     else:
                         dropped += 1
@@ -162,16 +161,19 @@ class YouCook2Flowception(Dataset):
                 kept += len(segs)
 
         self.entries = cleaned
-        print(f"Segmented entries (≥1 valid segment): {len(self.entries)}  | "
-            f"segments kept: {kept}, dropped (too short): {dropped}")
+        print(
+            f"Segmented entries (≥1 valid segment): {len(self.entries)}  | "
+            f"segments kept: {kept}, dropped (too short): {dropped}"
+        )
 
         # (optional) sanity: if self.num_frames < (ld*k + 1), you’ll *never* meet the requirement
         min_valid_len_needed = ld * k + 1
         if self.num_frames < min_valid_len_needed:
-            print(f"[warn] num_frames={self.num_frames} < required valid_len={min_valid_len_needed} "
-                f"for (ld={ld}, k={k}). Consider increasing num_frames or relaxing k.")
+            print(
+                f"[warn] num_frames={self.num_frames} < required valid_len={min_valid_len_needed} "
+                f"for (ld={ld}, k={k}). Consider increasing num_frames or relaxing k."
+            )
 
-        
         # --- NEW: will be set lazily inside workers ---
         self._shard_ready = False
         self._my_entries = None
@@ -180,7 +182,7 @@ class YouCook2Flowception(Dataset):
         self._shard_style = shard_style
 
         print(f"Segmented entries (videos with ≥1 segment): {len(self.entries)}")
-        
+
     def _setup_worker_shard(self):
         """Compute per-worker/ per-rank video subset exactly once."""
         if self._shard_ready:
@@ -189,7 +191,7 @@ class YouCook2Flowception(Dataset):
         # Worker info (DataLoader)
         wi = get_worker_info()
         wid, wnum = (wi.id, wi.num_workers) if wi is not None else (0, 1)
-        
+
         print("worker id and num_workers", wid, wnum)
 
         # DDP rank/world (if initialized)
@@ -199,7 +201,7 @@ class YouCook2Flowception(Dataset):
             world = torch.distributed.get_world_size()
 
         gnum = world * wnum
-        gid  = rank * wnum + wid
+        gid = rank * wnum + wid
 
         entries = self.entries
         n = len(entries)
@@ -209,7 +211,7 @@ class YouCook2Flowception(Dataset):
             if self._shard_style == "contiguous":
                 # contiguous chunk per global worker
                 start = (n * gid) // gnum
-                end   = (n * (gid + 1)) // gnum
+                end = (n * (gid + 1)) // gnum
                 self._my_entries = entries[start:end]
             else:
                 # interleaved (round-robin) sharding – better balance if videos vary in segment count
@@ -233,7 +235,7 @@ class YouCook2Flowception(Dataset):
         seg = random.choice(vid_meta["segments"])
         path = os.path.join(self.vid_root, vid_meta["filename"])
         return path, seg
-    
+
     def _pick_segment_from_shard(self, idx: int):
         """Map a global dataloader index to this worker's video subset, then pick a random segment within that video."""
         self._setup_worker_shard()
@@ -246,7 +248,7 @@ class YouCook2Flowception(Dataset):
         # vi = idx % len(pool)                      # stable per worker
         vi = np.random.randint(len(pool))
         vid_meta = pool[vi]
-        seg = random.choice(vid_meta["segments"]) # still random within that video
+        seg = random.choice(vid_meta["segments"])  # still random within that video
         path = os.path.join(self.vid_root, vid_meta["filename"])
         return path, seg
 
@@ -269,18 +271,13 @@ class YouCook2Flowception(Dataset):
         if not os.path.isfile(vid_path):
             raise FileNotFoundError(vid_path)
 
-        reader = VideoReader(
-            vid_path, num_threads=2, ctx=cpu(0),
-            width=self.width, height=self.height
-        )
+        reader = VideoReader(vid_path, num_threads=2, ctx=cpu(0), width=self.width, height=self.height)
         total = len(reader)
         if total < 1:
             raise ValueError("Empty video")
 
         # Segment window (inclusive indices)
-        seg_start_idx, seg_end_idx = self._segment_frame_window(
-            total, float(seg["start"]), float(seg["end"])
-        )
+        seg_start_idx, seg_end_idx = self._segment_frame_window(total, float(seg["start"]), float(seg["end"]))
         seg_len = seg_end_idx - seg_start_idx + 1
         if seg_len <= 0:
             raise ValueError("Zero-length segment after indexing")
@@ -293,21 +290,17 @@ class YouCook2Flowception(Dataset):
         max_valid = 1 + (seg_len - 1) // stride
         valid_len = min(T, max_valid)
 
-        ld     = self.latent_downsample    # 8
-        
-        
-        
-        
-        
-        ld     = self.latent_downsample
-        T      = self.num_frames
+        ld = self.latent_downsample  # 8
+
+        ld = self.latent_downsample
+        T = self.num_frames
         stride = self.frame_stride
 
         # frames available in the segment at this stride
         max_valid = 1 + (seg_len - 1) // stride
 
         # minimum requirement in RGB frames (first + groups of ld)
-        min_latents      = self.num_start_frames + 2
+        min_latents = self.num_start_frames + 2
         min_valid_needed = 1 + (min_latents - 1) * ld
 
         if max_valid < min_valid_needed:
@@ -321,7 +314,7 @@ class YouCook2Flowception(Dataset):
         # Now (L - 1) % ld == 0 and L ≤ T and L ≤ max_valid
 
         # pick start so exactly L frames fit at this stride
-        start_low  = seg_start_idx
+        start_low = seg_start_idx
         start_high = seg_end_idx - (L - 1) * stride
         if start_high < start_low:
             start_high = start_low
@@ -341,13 +334,14 @@ class YouCook2Flowception(Dataset):
             frame_indices = idx_valid
 
         # masks & lengths (ONLY from L)
-        frame_mask    = torch.zeros(T, dtype=torch.bool); frame_mask[:L] = True
+        frame_mask = torch.zeros(T, dtype=torch.bool)
+        frame_mask[:L] = True
         latent_length = 1 + (L - 1) // ld
-        video_length  = L
+        video_length = L
 
         # tensors
-        img_tensor    = frames.permute(3, 0, 1, 2).contiguous()             # [C,T,H,W]
-        anchor_tensor = frames_valid[:1].permute(3, 0, 1, 2).contiguous()   # [3,1,H,W]
+        img_tensor = frames.permute(3, 0, 1, 2).contiguous()  # [C,T,H,W]
+        anchor_tensor = frames_valid[:1].permute(3, 0, 1, 2).contiguous()  # [3,1,H,W]
 
         # hard sanity
         # assert img_tensor.shape[1] == T
@@ -362,9 +356,9 @@ class YouCook2Flowception(Dataset):
                 "caption_idx": torch.tensor(0),
                 "crop_coords": torch.zeros(8),
                 "anchor_frame": anchor_tensor,
-                "frame_mask": frame_mask,                        # [T]
-                "video_length": torch.tensor(video_length),      # L (aligned)
-                "latent_length": torch.tensor(latent_length),    # 1 + (L-1)//ld
+                "frame_mask": frame_mask,  # [T]
+                "video_length": torch.tensor(video_length),  # L (aligned)
+                "latent_length": torch.tensor(latent_length),  # 1 + (L-1)//ld
                 "stride": torch.tensor(stride),
                 "frame_indices": torch.from_numpy(frame_indices),
                 "segment_start_s": torch.tensor(float(seg["start"])),
@@ -372,8 +366,6 @@ class YouCook2Flowception(Dataset):
             },
         )
 
-
-    
     def __getitem__(self, idx):
         for _ in range(self.max_retries):
             try:

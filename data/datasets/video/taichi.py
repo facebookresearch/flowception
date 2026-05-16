@@ -53,7 +53,7 @@
 # #         pick_files: int | None = None, # randomly subsample shards; None=all
 # #         max_retries: int = 20,
 # #     ):
-        
+
 # #         shard_names = [annotations_dir]
 # #         # Load entries (optionally filter by motion score if present + requested)
 # #         entries = []
@@ -409,10 +409,6 @@
 #         return self._fetch_one()
 
 
-
-
-
-
 # import os
 # import joblib
 # import tqdm
@@ -630,7 +626,6 @@
 #         return self._fetch_one()
 
 
-
 # taichi_mp4_dataset.py
 import os
 import joblib
@@ -641,7 +636,8 @@ from torch.utils.data import Dataset
 
 from decord import VideoReader, cpu
 from decord import bridge as decord_bridge
-decord_bridge.set_bridge('torch')  # return torch tensors from decord
+
+decord_bridge.set_bridge("torch")  # return torch tensors from decord
 
 from engine.data_classes import Datapoint
 
@@ -686,17 +682,17 @@ class TaichiDatasetFlowception(Dataset):
 
     def __init__(
         self,
-        annotations_dir: str,          # dir of .pt shards OR a single .pt file
+        annotations_dir: str,  # dir of .pt shards OR a single .pt file
         width: int,
         height: int,
-        num_frames: int = 72,          # requested RGB length; ceil-aligned to 1 + n*ld
-        sampling_fps: float = 24.0,    # target sampling fps
-        native_fps: float = 24.0,      # nominal native fps for stride calc
-        num_start_latents: int = 2,    # k (latent-space warmup AFTER context)
+        num_frames: int = 72,  # requested RGB length; ceil-aligned to 1 + n*ld
+        sampling_fps: float = 24.0,  # target sampling fps
+        native_fps: float = 24.0,  # nominal native fps for stride calc
+        num_start_latents: int = 2,  # k (latent-space warmup AFTER context)
         num_context_latents: int = 0,  # K (latent-space context at the very start)
-        latent_downsample: int = 8,    # ld
-        min_motion_score: float = 3.0, # (unused here; kept for parity)
-        pick_files: int | None = None, # (unused here)
+        latent_downsample: int = 8,  # ld
+        min_motion_score: float = 3.0,  # (unused here; kept for parity)
+        pick_files: int | None = None,  # (unused here)
         max_retries: int = 20,
         # --- backwards-compat alias (deprecated) ---
         num_start_frames: int | None = None,  # treated as LATENTS if provided
@@ -721,10 +717,10 @@ class TaichiDatasetFlowception(Dataset):
         print(f"[TaichiMP4Dataset] items: {len(entries)}")
 
         # ----- geometry / fps / stride -----
-        self.width  = int(width)
+        self.width = int(width)
         self.height = int(height)
         self.sampling_fps = float(sampling_fps)
-        self.native_fps   = float(native_fps)
+        self.native_fps = float(native_fps)
 
         stride = int(round(self.native_fps / max(1e-8, self.sampling_fps)))
         self.frame_stride = max(1, stride)
@@ -733,10 +729,10 @@ class TaichiDatasetFlowception(Dataset):
         if num_start_frames is not None:
             num_start_latents = int(num_start_frames)  # treat legacy arg as LATENTS
 
-        self.num_start_latents  = int(max(0, num_start_latents))    # k
-        self.num_context_latents = int(max(0, num_context_latents)) # K
-        self.latent_downsample  = int(latent_downsample)            # ld
-        self.max_retries        = int(max_retries)
+        self.num_start_latents = int(max(0, num_start_latents))  # k
+        self.num_context_latents = int(max(0, num_context_latents))  # K
+        self.latent_downsample = int(latent_downsample)  # ld
+        self.max_retries = int(max_retries)
 
         # ----- Align requested T to 1 + n*ld (ceil) -----
         T_req = int(num_frames)
@@ -745,7 +741,7 @@ class TaichiDatasetFlowception(Dataset):
         ld = self.latent_downsample
         rem = (T_req - 1) % ld
         if rem != 0:
-            T_req += (ld - rem)
+            T_req += ld - rem
             print(f"[info] aligning num_frames -> {T_req} (1 + n*{ld})")
         self.num_frames = T_req
 
@@ -762,19 +758,16 @@ class TaichiDatasetFlowception(Dataset):
         if not os.path.isfile(path):
             raise FileNotFoundError(path)
 
-        reader = VideoReader(
-            path, num_threads=-1, ctx=cpu(0),
-            width=self.width, height=self.height
-        )
+        reader = VideoReader(path, num_threads=-1, ctx=cpu(0), width=self.width, height=self.height)
         total = len(reader)
         if total < 1:
             raise ValueError(f"Empty video: {path}")
 
         ld = self.latent_downsample
-        K  = self.num_context_latents      # context latents to reserve at the start
-        k  = self.num_start_latents        # start latents to sample AFTER context
-        s  = self.frame_stride
-        T  = self.num_frames
+        K = self.num_context_latents  # context latents to reserve at the start
+        k = self.num_start_latents  # start latents to sample AFTER context
+        s = self.frame_stride
+        T = self.num_frames
 
         # frames available at stride s from whole video
         max_valid = 1 + (total - 1) // s
@@ -802,7 +795,7 @@ class TaichiDatasetFlowception(Dataset):
         # indices and frames
         idx_valid = np.arange(start, start + L * s, s, dtype=np.int64)
         frames_valid = reader.get_batch(idx_valid).to(torch.float32)  # [L,H,W,3]
-        frames_valid = frames_valid / 127.5 - 1.0                     # [-1,1]
+        frames_valid = frames_valid / 127.5 - 1.0  # [-1,1]
 
         # pad/truncate to fixed T for batching (repeat last real frame if needed)
         if L < T:
@@ -814,13 +807,14 @@ class TaichiDatasetFlowception(Dataset):
             frame_indices = idx_valid
 
         # masks & lengths
-        frame_mask    = torch.zeros(T, dtype=torch.bool); frame_mask[:L] = True
+        frame_mask = torch.zeros(T, dtype=torch.bool)
+        frame_mask[:L] = True
         latent_length = 1 + (L - 1) // ld
-        video_length  = L
+        video_length = L
 
         # pack tensors
-        img_tensor    = frames.permute(3, 0, 1, 2).contiguous()           # [C,T,H,W]
-        anchor_tensor = frames_valid[:1].permute(3, 0, 1, 2).contiguous() # [3,1,H,W]
+        img_tensor = frames.permute(3, 0, 1, 2).contiguous()  # [C,T,H,W]
+        anchor_tensor = frames_valid[:1].permute(3, 0, 1, 2).contiguous()  # [3,1,H,W]
 
         # sanity
         assert img_tensor.shape[1] == T
@@ -837,10 +831,10 @@ class TaichiDatasetFlowception(Dataset):
                 "class_id": description,
                 "caption_idx": torch.tensor(0),
                 "crop_coords": crop_coords,
-                "anchor_frame": anchor_tensor,                   # first real RGB frame
-                "frame_mask": frame_mask,                        # [T] (True for first L)
-                "video_length": torch.tensor(video_length),      # L (RGB)
-                "latent_length": torch.tensor(latent_length),    # 1 + (L-1)//ld
+                "anchor_frame": anchor_tensor,  # first real RGB frame
+                "frame_mask": frame_mask,  # [T] (True for first L)
+                "video_length": torch.tensor(video_length),  # L (RGB)
+                "latent_length": torch.tensor(latent_length),  # 1 + (L-1)//ld
                 "stride": torch.tensor(s),
                 "frame_indices": torch.from_numpy(frame_indices),
                 "num_context_latents": torch.tensor(K),

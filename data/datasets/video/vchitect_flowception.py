@@ -9,21 +9,23 @@ from engine.data_classes import Datapoint  # your class
 # add near your imports
 import decord
 from decord import VideoReader, cpu, gpu
-decord.bridge.set_bridge('torch')  # returns torch tensors instead of NDArray
+
+decord.bridge.set_bridge("torch")  # returns torch tensors instead of NDArray
+
 
 def _decode_with_decord_from_bytes(
     data: bytes,
     width: int,
     height: int,
-    T: int,                   # requested aligned length
-    ld: int,                  # latent downsample
-    k: int,                   # num_start_frames
+    T: int,  # requested aligned length
+    ld: int,  # latent downsample
+    k: int,  # num_start_frames
     sampling_fps: float,
     default_native_fps: float,
     prefer_gpu: bool = False,
 ):
     bio = io.BytesIO(data)  # keep a ref alive while vr exists
-    ctx = gpu(0) if (prefer_gpu and decord.__dict__.get('_cuda_enabled_', False)) else cpu(0)
+    ctx = gpu(0) if (prefer_gpu and decord.__dict__.get("_cuda_enabled_", False)) else cpu(0)
 
     # decode at target size directly
     vr = VideoReader(bio, ctx=ctx, width=width, height=height, num_threads=0)
@@ -73,32 +75,44 @@ def _decode_with_decord_from_bytes(
 # add at top
 from collections import OrderedDict
 
+
 class _LocLRU(OrderedDict):
     def __init__(self, capacity=200_000):
-        super().__init__(); self.capacity = capacity
+        super().__init__()
+        self.capacity = capacity
+
     def get(self, k, default=None):
         v = super().get(k, default)
-        if v is not None: self.move_to_end(k)
+        if v is not None:
+            self.move_to_end(k)
         return v
+
     def put(self, k, v):
-        self[k] = v; self.move_to_end(k)
-        if len(self) > self.capacity: self.popitem(last=False)
+        self[k] = v
+        self.move_to_end(k)
+        if len(self) > self.capacity:
+            self.popitem(last=False)
 
 
 # ------------------ utilities ------------------
 
+
 def _chunks(lst, n=900):
     for i in range(0, len(lst), n):
-        yield lst[i:i+n]
+        yield lst[i : i + n]
+
 
 class _FDCache:
     """Small LRU cache of open tar FDs (per worker)."""
+
     def __init__(self, capacity=32):
         self.capacity = capacity
         self._order, self._fds = [], {}
+
     def open(self, path: str):
         if path in self._fds:
-            self._order.remove(path); self._order.append(path)
+            self._order.remove(path)
+            self._order.append(path)
             return self._fds[path]
         fd = os.open(path, os.O_RDONLY)
         self._fds[path] = fd
@@ -107,14 +121,18 @@ class _FDCache:
             old = self._order.pop(0)
             os.close(self._fds.pop(old, None))
         return fd
+
     def close_all(self):
         for fd in self._fds.values():
             os.close(fd)
-        self._fds.clear(); self._order.clear()
+        self._fds.clear()
+        self._order.clear()
+
 
 def _norm_neg1_pos1_uint8(x: torch.Tensor) -> torch.Tensor:
     # x is uint8 or float in [0,255] -> [-1,1]
     return x.to(torch.float32).div_(127.5).sub_(1.0)
+
 
 def _fps_from_stream(vstream, default_fps: float = 24.0) -> float:
     """Best-effort FPS from metadata; falls back to default_fps."""
@@ -138,6 +156,7 @@ def _fps_from_stream(vstream, default_fps: float = 24.0) -> float:
         pass
     return float(default_fps)
 
+
 def _estimate_total_frames(vstream, fps_fallback: float) -> int:
     """Len-like estimate using direct metadata or duration*fallback_fps."""
     try:
@@ -155,6 +174,7 @@ def _estimate_total_frames(vstream, fps_fallback: float) -> int:
     # last resort: ~10 seconds of video at fallback fps
     return max(1, int(round(10 * fps_fallback)))
 
+
 def _seek_to_frame(container, vstream, start_idx: int, fps: float):
     """Approximate seek to a given frame index using timestamps."""
     try:
@@ -165,7 +185,9 @@ def _seek_to_frame(container, vstream, start_idx: int, fps: float):
     except Exception:
         pass
 
+
 # ------------------ main dataset ------------------
+
 
 class VChitectTarFlowception(Dataset):
     def __init__(
@@ -174,12 +196,12 @@ class VChitectTarFlowception(Dataset):
         index_db: str,
         width: int,
         height: int,
-        num_frames: int = 72,             # will ceil to 1 + n*ld
+        num_frames: int = 72,  # will ceil to 1 + n*ld
         min_motion_score: float | None = None,
-        sampling_fps: float = 24.0,        # desired sampling rate
+        sampling_fps: float = 24.0,  # desired sampling rate
         default_native_fps: float = 24.0,  # fallback when metadata missing
-        num_start_frames: int = 2,         # k
-        latent_downsample: int = 8,        # ld
+        num_start_frames: int = 2,  # k
+        latent_downsample: int = 8,  # ld
         max_retries: int = 20,
         drop_missing: bool = False,
         preload_locations: bool = False,
@@ -189,11 +211,11 @@ class VChitectTarFlowception(Dataset):
 
         self.ann = ann
 
-        self.width  = int(width)
+        self.width = int(width)
         self.height = int(height)
-        self.sampling_fps      = float(sampling_fps)
+        self.sampling_fps = float(sampling_fps)
         self.default_native_fps = float(default_native_fps)
-        self.num_start_frames  = int(num_start_frames)
+        self.num_start_frames = int(num_start_frames)
         self.latent_downsample = int(latent_downsample)
         self.max_retries = int(max_retries)
         self.db_path = str(index_db)
@@ -205,7 +227,7 @@ class VChitectTarFlowception(Dataset):
             raise ValueError("num_frames must be >= 2 for (first + groups-of-ld) rule")
         rem = (T_req - 1) % ld
         if rem != 0:
-            T_req += (ld - rem)
+            T_req += ld - rem
         self.num_frames = T_req
 
         # SQLite: keep only present basenames and (optionally) preload locations
@@ -221,7 +243,7 @@ class VChitectTarFlowception(Dataset):
         self._sql = "SELECT tar, offset, size FROM vids WHERE basename=? LIMIT 1"
 
         # keep preload map if you use it; add a small on-demand LRU too
-        self._preloaded = {}     # filled only if preload_locations=True
+        self._preloaded = {}  # filled only if preload_locations=True
         self._lru = _LocLRU(200_000)
 
         with sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True) as c:
@@ -243,7 +265,6 @@ class VChitectTarFlowception(Dataset):
                     ):
                         self._preloaded[basename] = (tar, offset, size)
 
-
     def __len__(self):
         return 1_000_000  # streaming-style
 
@@ -258,7 +279,9 @@ class VChitectTarFlowception(Dataset):
         if loc is not None:
             return loc
         with sqlite3.connect(f"file:{self.db_path}?mode=ro", uri=True) as c:
-            row = c.execute("SELECT tar, offset, size FROM vids WHERE basename=? LIMIT 1", (basename,)).fetchone()
+            row = c.execute(
+                "SELECT tar, offset, size FROM vids WHERE basename=? LIMIT 1", (basename,)
+            ).fetchone()
         if not row:
             raise FileNotFoundError(basename)
         return row
@@ -270,7 +293,7 @@ class VChitectTarFlowception(Dataset):
         except AttributeError:
             os.lseek(fd, offset, os.SEEK_SET)
             return os.read(fd, size)
-        
+
     # -- NEW: open one connection per worker on first use --
     def _conn_open(self):
         if self._conn is None:
@@ -281,8 +304,8 @@ class VChitectTarFlowception(Dataset):
             # helpful PRAGMAs for read perf (tune to your RAM)
             self._cur.execute("PRAGMA query_only=ON")
             self._cur.execute("PRAGMA temp_store=MEMORY")
-            self._cur.execute("PRAGMA mmap_size=268435456")    # 256 MB
-            self._cur.execute("PRAGMA cache_size=-200000")     # ~200 MB page cache
+            self._cur.execute("PRAGMA mmap_size=268435456")  # 256 MB
+            self._cur.execute("PRAGMA cache_size=-200000")  # ~200 MB page cache
         return self._cur
 
     def _lookup(self, basename: str):
@@ -304,9 +327,12 @@ class VChitectTarFlowception(Dataset):
 
     def __del__(self):
         try:
-            if self._fdcache: self._fdcache.close_all()
-            if self._cur: self._cur.close()
-            if self._conn: self._conn.close()
+            if self._fdcache:
+                self._fdcache.close_all()
+            if self._cur:
+                self._cur.close()
+            if self._conn:
+                self._conn.close()
         except Exception:
             pass
 
@@ -323,8 +349,11 @@ class VChitectTarFlowception(Dataset):
         try:
             frames_u8, s, L, idx_valid = _decode_with_decord_from_bytes(
                 data,
-                width=self.width, height=self.height,
-                T=T, ld=ld, k=k,
+                width=self.width,
+                height=self.height,
+                T=T,
+                ld=ld,
+                k=k,
                 sampling_fps=self.sampling_fps,
                 default_native_fps=self.default_native_fps,
                 prefer_gpu=False,  # set True if you built decord with CUDA
@@ -343,11 +372,12 @@ class VChitectTarFlowception(Dataset):
         else:
             frame_indices = idx_valid
 
-        frame_mask    = torch.zeros(T, dtype=torch.bool); frame_mask[:L] = True
+        frame_mask = torch.zeros(T, dtype=torch.bool)
+        frame_mask[:L] = True
         latent_length = torch.tensor(1 + (L - 1) // ld, dtype=torch.long)
-        video_length  = torch.tensor(L, dtype=torch.long)
+        video_length = torch.tensor(L, dtype=torch.long)
         stride_tensor = torch.tensor(s, dtype=torch.long)
-        anchor_frame  = pixel_values[:, :1]  # [3,1,H,W]
+        anchor_frame = pixel_values[:, :1]  # [3,1,H,W]
 
         cls = item.get("description") or item.get("text") or ""
         return Datapoint(
@@ -365,7 +395,6 @@ class VChitectTarFlowception(Dataset):
             },
         )
 
-
     def __getitem__(self, idx):
         for _ in range(self.max_retries):
             try:
@@ -378,6 +407,7 @@ class VChitectTarFlowception(Dataset):
 
     def __del__(self):
         try:
-            if self._fdcache: self._fdcache.close_all()
+            if self._fdcache:
+                self._fdcache.close_all()
         except Exception:
             pass

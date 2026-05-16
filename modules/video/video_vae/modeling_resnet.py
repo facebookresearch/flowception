@@ -92,7 +92,9 @@ class CausalResnetBlock3D(nn.Module):
         elif self.time_embedding_norm == "spatial":
             self.norm2 = SpatialNorm(out_channels, temb_channels)
         else:
-            self.norm2 = CausalGroupNorm(num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True)
+            self.norm2 = CausalGroupNorm(
+                num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True
+            )
 
         self.dropout = torch.nn.Dropout(dropout)
         conv_2d_out_channels = conv_2d_out_channels or out_channels
@@ -100,7 +102,9 @@ class CausalResnetBlock3D(nn.Module):
 
         self.nonlinearity = get_activation(non_linearity)
         self.upsample = self.downsample = None
-        self.use_in_shortcut = self.in_channels != conv_2d_out_channels if use_in_shortcut is None else use_in_shortcut
+        self.use_in_shortcut = (
+            self.in_channels != conv_2d_out_channels if use_in_shortcut is None else use_in_shortcut
+        )
 
         self.conv_shortcut = None
         if self.use_in_shortcut:
@@ -116,7 +120,7 @@ class CausalResnetBlock3D(nn.Module):
         self,
         input_tensor: torch.FloatTensor,
         temb: torch.FloatTensor = None,
-        is_init_image=True, 
+        is_init_image=True,
         temporal_chunk=False,
     ) -> torch.FloatTensor:
         hidden_states = input_tensor
@@ -143,7 +147,9 @@ class CausalResnetBlock3D(nn.Module):
         hidden_states = self.conv2(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
 
         if self.conv_shortcut is not None:
-            input_tensor = self.conv_shortcut(input_tensor, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+            input_tensor = self.conv_shortcut(
+                input_tensor, is_init_image=is_init_image, temporal_chunk=temporal_chunk
+            )
 
         output_tensor = (input_tensor + hidden_states) / self.output_scale_factor
 
@@ -230,7 +236,9 @@ class ResnetBlock2D(nn.Module):
         elif self.time_embedding_norm == "spatial":
             self.norm2 = SpatialNorm(out_channels, temb_channels)
         else:
-            self.norm2 = torch.nn.GroupNorm(num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True)
+            self.norm2 = torch.nn.GroupNorm(
+                num_groups=groups_out, num_channels=out_channels, eps=eps, affine=True
+            )
 
         self.dropout = torch.nn.Dropout(dropout)
         conv_2d_out_channels = conv_2d_out_channels or out_channels
@@ -238,7 +246,9 @@ class ResnetBlock2D(nn.Module):
 
         self.nonlinearity = get_activation(non_linearity)
         self.upsample = self.downsample = None
-        self.use_in_shortcut = self.in_channels != conv_2d_out_channels if use_in_shortcut is None else use_in_shortcut
+        self.use_in_shortcut = (
+            self.in_channels != conv_2d_out_channels if use_in_shortcut is None else use_in_shortcut
+        )
 
         self.conv_shortcut = None
         if self.use_in_shortcut:
@@ -330,7 +340,9 @@ class CausalDownsample2x(nn.Module):
 
         self.conv = conv
 
-    def forward(self, hidden_states: torch.FloatTensor, is_init_image=True, temporal_chunk=False) -> torch.FloatTensor:
+    def forward(
+        self, hidden_states: torch.FloatTensor, is_init_image=True, temporal_chunk=False
+    ) -> torch.FloatTensor:
         assert hidden_states.shape[1] == self.channels
         hidden_states = self.conv(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
         return hidden_states
@@ -373,7 +385,12 @@ class Downsample2D(nn.Module):
 
         if use_conv:
             conv = conv_cls(
-                self.channels, self.out_channels, kernel_size=kernel_size, stride=stride, padding=padding, bias=bias
+                self.channels,
+                self.out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+                bias=bias,
             )
         else:
             assert self.channels == self.out_channels
@@ -431,7 +448,12 @@ class TemporalDownsample2x(nn.Module):
 
         if use_conv:
             conv = conv_cls(
-                self.channels, self.out_channels, kernel_size=kernel_size, stride=stride, padding=padding, bias=bias
+                self.channels,
+                self.out_channels,
+                kernel_size=kernel_size,
+                stride=stride,
+                padding=padding,
+                bias=bias,
             )
         else:
             raise NotImplementedError("Not implemented for temporal downsample without")
@@ -496,7 +518,9 @@ class CausalTemporalDownsample2x(nn.Module):
 
         self.conv = conv
 
-    def forward(self, hidden_states: torch.FloatTensor, is_init_image=True, temporal_chunk=False) -> torch.FloatTensor:
+    def forward(
+        self, hidden_states: torch.FloatTensor, is_init_image=True, temporal_chunk=False
+    ) -> torch.FloatTensor:
         assert hidden_states.shape[1] == self.channels
         hidden_states = self.conv(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
         return hidden_states
@@ -535,20 +559,22 @@ class Upsample2D(nn.Module):
         self.interpolate = interpolate
         conv_cls = nn.Conv3d
         conv = None
-    
+
         if interpolate:
             raise NotImplementedError("Not implemented for spatial upsample with interpolate")
         else:
             if kernel_size is None:
                 kernel_size = 3
-            conv = conv_cls(self.channels, self.out_channels * 4, kernel_size=kernel_size, padding=padding, bias=bias)
+            conv = conv_cls(
+                self.channels, self.out_channels * 4, kernel_size=kernel_size, padding=padding, bias=bias
+            )
 
         self.conv = conv
         self.conv.apply(self._init_weights)
 
     def _init_weights(self, m):
         if isinstance(m, (nn.Linear, nn.Conv2d, nn.Conv3d)):
-            trunc_normal_(m.weight, std=.02)
+            trunc_normal_(m.weight, std=0.02)
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
         elif isinstance(m, nn.LayerNorm):
@@ -561,8 +587,8 @@ class Upsample2D(nn.Module):
     ) -> torch.FloatTensor:
         assert hidden_states.shape[1] == self.channels
 
-        hidden_states = self.conv(hidden_states) 
-        hidden_states = rearrange(hidden_states, 'b (c p1 p2) t h w -> b c t (h p1) (w p2)', p1=2, p2=2)
+        hidden_states = self.conv(hidden_states)
+        hidden_states = rearrange(hidden_states, "b (c p1 p2) t h w -> b c t (h p1) (w p2)", p1=2, p2=2)
 
         return hidden_states
 
@@ -598,22 +624,25 @@ class CausalUpsample2x(nn.Module):
         self.name = name
         self.interpolate = interpolate
         conv = None
-    
+
         if interpolate:
             raise NotImplementedError("Not implemented for spatial upsample with interpolate")
         else:
-            conv = CausalConv3d(self.channels, self.out_channels * 4, kernel_size=kernel_size, stride=1, bias=bias)
+            conv = CausalConv3d(
+                self.channels, self.out_channels * 4, kernel_size=kernel_size, stride=1, bias=bias
+            )
 
         self.conv = conv
 
     def forward(
         self,
         hidden_states: torch.FloatTensor,
-        is_init_image=True, temporal_chunk=False,
+        is_init_image=True,
+        temporal_chunk=False,
     ) -> torch.FloatTensor:
         assert hidden_states.shape[1] == self.channels
-        hidden_states = self.conv(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk) 
-        hidden_states = rearrange(hidden_states, 'b (c p1 p2) t h w -> b c t (h p1) (w p2)', p1=2, p2=2)
+        hidden_states = self.conv(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+        hidden_states = rearrange(hidden_states, "b (c p1 p2) t h w -> b c t (h p1) (w p2)", p1=2, p2=2)
         return hidden_states
 
 
@@ -655,7 +684,9 @@ class TemporalUpsample2x(nn.Module):
             # depth to space operator
             if kernel_size is None:
                 kernel_size = 3
-            conv = conv_cls(self.channels, self.out_channels * 2, kernel_size=kernel_size, padding=padding, bias=bias)
+            conv = conv_cls(
+                self.channels, self.out_channels * 2, kernel_size=kernel_size, padding=padding, bias=bias
+            )
 
         self.conv = conv
 
@@ -666,8 +697,8 @@ class TemporalUpsample2x(nn.Module):
     ) -> torch.FloatTensor:
         assert hidden_states.shape[1] == self.channels
         t = hidden_states.shape[2]
-        hidden_states = self.conv(hidden_states) 
-        hidden_states = rearrange(hidden_states, 'b (c p) t h w -> b c (p t) h w', p=2)
+        hidden_states = self.conv(hidden_states)
+        hidden_states = rearrange(hidden_states, "b (c p) t h w -> b c (p t) h w", p=2)
 
         if t == 1 and is_image:
             hidden_states = hidden_states[:, :, 1:]
@@ -709,19 +740,22 @@ class CausalTemporalUpsample2x(nn.Module):
             raise NotImplementedError("Not implemented for spatial upsample with interpolate")
         else:
             # depth to space operator
-            conv = CausalConv3d(self.channels, self.out_channels * 2, kernel_size=kernel_size, stride=1, bias=bias)
+            conv = CausalConv3d(
+                self.channels, self.out_channels * 2, kernel_size=kernel_size, stride=1, bias=bias
+            )
 
         self.conv = conv
 
     def forward(
         self,
         hidden_states: torch.FloatTensor,
-        is_init_image=True, temporal_chunk=False,
+        is_init_image=True,
+        temporal_chunk=False,
     ) -> torch.FloatTensor:
         assert hidden_states.shape[1] == self.channels
         t = hidden_states.shape[2]
-        hidden_states = self.conv(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk) 
-        hidden_states = rearrange(hidden_states, 'b (c p) t h w -> b c (t p) h w', p=2)
+        hidden_states = self.conv(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+        hidden_states = rearrange(hidden_states, "b (c p) t h w -> b c (t p) h w", p=2)
 
         if is_init_image:
             hidden_states = hidden_states[:, :, 1:]

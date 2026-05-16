@@ -85,16 +85,12 @@ class TimestepEmbedder(nn.Module):
         """
         half = dim // 2
         freqs = torch.exp(
-            -math.log(max_period)
-            * torch.arange(start=0, end=half, dtype=torch.float32)
-            / half
+            -math.log(max_period) * torch.arange(start=0, end=half, dtype=torch.float32) / half
         ).to(device=time.device)
         args = time[:, None].float() * freqs[None]
         embedding = torch.cat([torch.cos(args), torch.sin(args)], dim=-1)
         if dim % 2:
-            embedding = torch.cat(
-                [embedding, torch.zeros_like(embedding[:, :1])], dim=-1
-            )
+            embedding = torch.cat([embedding, torch.zeros_like(embedding[:, :1])], dim=-1)
         return embedding
 
     def forward(self, time: Tensor) -> Tensor:
@@ -164,21 +160,14 @@ class DDiTBlock(nn.Module):
         k = self.kw(x)
         v = self.vw(x)
 
-        q, k, v = (
-            item.view(batch_size, seq_len, self.n_heads, self.head_dim)
-            for item in (q, k, v)
-        )
+        q, k, v = (item.view(batch_size, seq_len, self.n_heads, self.head_dim) for item in (q, k, v))
 
         with torch.amp.autocast("cuda", enabled=False):
             cos, sin = rotary_cos_sin
         original_dtype = q.dtype
 
-        q = rotary.apply_rotary_emb_torch(
-            x=q.float(), cos=cos.float(), sin=sin.float()
-        ).to(original_dtype)
-        k = rotary.apply_rotary_emb_torch(
-            x=k.float(), cos=cos.float(), sin=sin.float()
-        ).to(original_dtype)
+        q = rotary.apply_rotary_emb_torch(x=q.float(), cos=cos.float(), sin=sin.float()).to(original_dtype)
+        k = rotary.apply_rotary_emb_torch(x=k.float(), cos=cos.float(), sin=sin.float()).to(original_dtype)
 
         q, k, v = (item.transpose(1, 2) for item in (q, k, v))
 
@@ -214,30 +203,25 @@ class DDitFinalLayer(nn.Module):
         super().__init__()
         self.norm_final = LayerNorm(hidden_size)
         self.hidden_size = hidden_size
-        self.linear = nn.Linear(hidden_size, 2*hidden_size)
+        self.linear = nn.Linear(hidden_size, 2 * hidden_size)
         self.vel_head = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size),
-            nn.SiLU(),
-            nn.Linear(hidden_size, out_channels)
+            nn.Linear(hidden_size, hidden_size), nn.SiLU(), nn.Linear(hidden_size, out_channels)
         )
         self.lambda_ins_head = nn.Sequential(
-            nn.Linear(hidden_size, hidden_size),
-            nn.SiLU(),
-            nn.Linear(hidden_size, 1)
+            nn.Linear(hidden_size, hidden_size), nn.SiLU(), nn.Linear(hidden_size, 1)
         )
-        
+
         self.adaLN_modulation = nn.Linear(cond_dim, 2 * hidden_size, bias=True)
-        
-        
+
     def forward(self, x: Tensor, c: Tensor) -> Tensor:
         shift, scale = self.adaLN_modulation(c).chunk(2, dim=2)
         x = modulate(x=self.norm_final(x), shift=shift, scale=scale)
         x = self.linear(x)
-        
-        vel = self.vel_head(x[:, :, :self.hidden_size])
-        
-        lambda_ins = self.lambda_ins_head(x[:, :, self.hidden_size:(2*self.hidden_size)])
-    
+
+        vel = self.vel_head(x[:, :, : self.hidden_size])
+
+        lambda_ins = self.lambda_ins_head(x[:, :, self.hidden_size : (2 * self.hidden_size)])
+
         return vel, lambda_ins
 
 
@@ -252,9 +236,7 @@ class Transformer(nn.Module):
 
         self.embedder = nn.Linear(config.input_dim, config.hidden_size)
 
-        self.time_embedding = TimestepEmbedder(
-            hidden_size=config.cond_dim, max_period=config.max_period
-        )
+        self.time_embedding = TimestepEmbedder(hidden_size=config.cond_dim, max_period=config.max_period)
         self.rotary_emb = rotary.Rotary(dim=config.hidden_size // config.n_heads, base=config.rope_base)
 
         self.blocks = nn.ModuleList(
@@ -280,16 +262,18 @@ class Transformer(nn.Module):
         x = self.embedder(x_t)
         b, d = time.shape
         tau_f = rearrange(time, "b d-> (b d)")
-        
+
         c = F.silu(self.time_embedding(time=tau_f))
         c = rearrange(c, "(b d) h -> b d h", b=b, d=d)
-        
+
         rotary_cos_sin = self.rotary_emb(x=x)
 
-        mask = torch.logical_or(torch.logical_and(mask[:, :, None], mask[:, None, :]),
-                                    torch.eye(mask.shape[1], dtype=torch.bool, device=mask.device))
+        mask = torch.logical_or(
+            torch.logical_and(mask[:, :, None], mask[:, None, :]),
+            torch.eye(mask.shape[1], dtype=torch.bool, device=mask.device),
+        )
         mask = mask[:, None, :, :]
-        
+
         with torch.amp.autocast("cuda", dtype=torch.float32):
             for i in range(len(self.blocks)):
                 x = self.blocks[i](x=x, rotary_cos_sin=rotary_cos_sin, c=c, mask=mask)

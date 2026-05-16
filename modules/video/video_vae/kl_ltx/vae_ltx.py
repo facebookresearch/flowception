@@ -1,4 +1,3 @@
-
 from typing import Optional, Tuple, Union
 
 import torch
@@ -55,7 +54,6 @@ class LTXVideoCausalConv3d(nn.Module):
 
     # def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
     #     time_kernel_size = self.kernel_size[0]
-
 
     #     hidden_states = self.conv(hidden_states)
     #     return hidden_states
@@ -1405,7 +1403,6 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
             return (posterior,)
         return AutoencoderKLOutput(latent_dist=posterior)
 
-
     #     if self.use_framewise_decoding and num_frames > tile_latent_min_num_frames:
     #         return self._temporal_tiled_decode(z, temb, return_dict=return_dict)
 
@@ -1451,16 +1448,16 @@ class AutoencoderKLLTXVideo(ModelMixin, ConfigMixin, FromOriginalModelMixin):
     ):
         if latent_mask is not None and torch.all(latent_mask):
             latent_mask = None
-            
+
         if temb is None and getattr(self.config, "timestep_conditioning", False):
             # Timestep in [0, 1] - decoder internally scales by 1000
             temb = torch.full((z.shape[0],), decode_timestep, device=z.device, dtype=z.dtype)
-            
+
             # Add noise using LTX's interpolation formula
             noise = torch.randn_like(z)
-            
+
             z_noisy = z * (1 - decode_noise_scale) + noise * decode_noise_scale
-            
+
             if latent_mask is not None:
                 # latent_mask=True for real frames -> add noise to real frames
                 m = latent_mask[:, None, :, None, None].to(z.dtype).to(z.device)

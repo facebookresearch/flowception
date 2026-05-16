@@ -6,7 +6,7 @@ from decord import VideoReader, cpu
 from decord import bridge as decord_bridge
 
 # Return torch tensors from decord (so we can .to(torch.float32))
-decord_bridge.set_bridge('torch')
+decord_bridge.set_bridge("torch")
 
 
 class OpenVid1MFlowception(Dataset):
@@ -30,9 +30,7 @@ class OpenVid1MFlowception(Dataset):
         self.video_root = Path(annotations_dir) / "video"
 
         if min_motion_score > 0:
-            self.annots_csv = self.annots_csv[
-                self.annots_csv["motion score"] > min_motion_score
-            ]
+            self.annots_csv = self.annots_csv[self.annots_csv["motion score"] > min_motion_score]
             print(
                 f"OpenVid1MFlowception: filtered to {len(self.annots_csv)} videos "
                 f"(motion score > {min_motion_score})"
@@ -78,8 +76,11 @@ class OpenVid1MFlowception(Dataset):
         stride = max(1, int(round(video_fps / self.sampling_fps)))
 
         reader = VideoReader(
-            vid_path, num_threads=-1, ctx=cpu(0),
-            width=self.width, height=self.height,
+            vid_path,
+            num_threads=-1,
+            ctx=cpu(0),
+            width=self.width,
+            height=self.height,
         )
         total = len(reader)
         if total < 1:

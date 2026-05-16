@@ -17,8 +17,10 @@ from diffusers.models.modeling_utils import ModelMixin
 
 from timm.models.layers import drop_path, to_2tuple, trunc_normal_
 from .modeling_enc_dec import (
-    DecoderOutput, DiagonalGaussianDistribution, 
-    CausalVaeDecoder, CausalVaeEncoder,
+    DecoderOutput,
+    DiagonalGaussianDistribution,
+    CausalVaeDecoder,
+    CausalVaeEncoder,
 )
 from .modeling_causal_conv import CausalConv3d
 
@@ -90,7 +92,7 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
         encoder_act_fn: str = "silu",
         encoder_norm_num_groups: int = 32,
         encoder_double_z: bool = True,
-        encoder_type: str = 'causal_vae_conv',
+        encoder_type: str = "causal_vae_conv",
         # decoder related
         decoder_in_channels: int = 4,
         decoder_out_channels: int = 3,
@@ -107,7 +109,7 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
         decoder_block_dropout: Tuple[int, ...] = (0.0, 0.0, 0.0, 0.0),
         decoder_act_fn: str = "silu",
         decoder_norm_num_groups: int = 32,
-        decoder_type: str = 'causal_vae_conv',
+        decoder_type: str = "causal_vae_conv",
         sample_size: int = 256,
         scaling_factor: float = 0.18215,
         add_post_quant_conv: bool = True,
@@ -147,8 +149,12 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
             block_dropout=decoder_block_dropout,
         )
 
-        self.quant_conv = CausalConv3d(2 * encoder_out_channels, 2 * encoder_out_channels, kernel_size=1, stride=1)
-        self.post_quant_conv = CausalConv3d(encoder_out_channels, encoder_out_channels, kernel_size=1, stride=1)
+        self.quant_conv = CausalConv3d(
+            2 * encoder_out_channels, 2 * encoder_out_channels, kernel_size=1, stride=1
+        )
+        self.post_quant_conv = CausalConv3d(
+            encoder_out_channels, encoder_out_channels, kernel_size=1, stride=1
+        )
         self.use_tiling = False
 
         # only relevant if vae tiling is enabled
@@ -159,7 +165,7 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
             if isinstance(self.config.sample_size, (list, tuple))
             else self.config.sample_size
         )
-        self.tile_latent_min_size = int(sample_size / downsample_scale) 
+        self.tile_latent_min_size = int(sample_size / downsample_scale)
         self.encode_tile_overlap_factor = 1 / 4
         self.decode_tile_overlap_factor = 1 / 4
         self.downsample_scale = downsample_scale
@@ -168,7 +174,7 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
 
     def _init_weights(self, m):
         if isinstance(m, (nn.Linear, nn.Conv2d, nn.Conv3d)):
-            trunc_normal_(m.weight, std=.02)
+            trunc_normal_(m.weight, std=0.02)
             if m.bias is not None:
                 nn.init.constant_(m.bias, 0)
         elif isinstance(m, (nn.LayerNorm, nn.GroupNorm)):
@@ -205,7 +211,9 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
         # set recursively
         processors = {}
 
-        def fn_recursive_add_processors(name: str, module: torch.nn.Module, processors: Dict[str, AttentionProcessor]):
+        def fn_recursive_add_processors(
+            name: str, module: torch.nn.Module, processors: Dict[str, AttentionProcessor]
+        ):
             if hasattr(module, "get_processor"):
                 processors[f"{name}.processor"] = module.get_processor(return_deprecated_lora=True)
 
@@ -271,8 +279,13 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
         self.set_attn_processor(processor)
 
     def encode(
-        self, x: torch.FloatTensor, return_dict: bool = True,
-        is_init_image=True, temporal_chunk=False, window_size=16, tile_sample_min_size=256,
+        self,
+        x: torch.FloatTensor,
+        return_dict: bool = True,
+        is_init_image=True,
+        temporal_chunk=False,
+        window_size=16,
+        tile_sample_min_size=256,
     ) -> Union[AutoencoderKLOutput, Tuple[DiagonalGaussianDistribution]]:
         """
         Encode a batch of images into latents.
@@ -289,16 +302,23 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
         self.tile_sample_min_size = tile_sample_min_size
         self.tile_latent_min_size = int(tile_sample_min_size / self.downsample_scale)
 
-        if self.use_tiling and (x.shape[-1] > self.tile_sample_min_size or x.shape[-2] > self.tile_sample_min_size):
-            return self.tiled_encode(x, return_dict=return_dict, is_init_image=is_init_image, 
-                temporal_chunk=temporal_chunk, window_size=window_size)
+        if self.use_tiling and (
+            x.shape[-1] > self.tile_sample_min_size or x.shape[-2] > self.tile_sample_min_size
+        ):
+            return self.tiled_encode(
+                x,
+                return_dict=return_dict,
+                is_init_image=is_init_image,
+                temporal_chunk=temporal_chunk,
+                window_size=window_size,
+            )
 
         if temporal_chunk:
             moments = self.chunk_encode(x, window_size=window_size)
         else:
             h = self.encoder(x, is_init_image=is_init_image, temporal_chunk=False)
             moments = self.quant_conv(h, is_init_image=is_init_image, temporal_chunk=False)
-    
+
         posterior = DiagonalGaussianDistribution(moments)
 
         if not return_dict:
@@ -313,13 +333,13 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
         num_frames = x.shape[2]
         assert (num_frames - 1) % self.downsample_scale == 0
         init_window_size = window_size + 1
-        frame_list = [x[:,:,:init_window_size]]
+        frame_list = [x[:, :, :init_window_size]]
 
-        # To chunk the long video 
+        # To chunk the long video
         full_chunk_size = (num_frames - init_window_size) // window_size
         fid = init_window_size
         for idx in range(full_chunk_size):
-            frame_list.append(x[:, :, fid:fid+window_size])
+            frame_list.append(x[:, :, fid : fid + window_size])
             fid += window_size
 
         if fid < num_frames:
@@ -341,18 +361,18 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
 
     def get_last_layer(self):
         return self.decoder.conv_out.conv.weight
-    
+
     @torch.no_grad()
     def chunk_decode(self, z: torch.FloatTensor, window_size=2):
         num_frames = z.shape[2]
         init_window_size = window_size + 1
-        frame_list = [z[:,:,:init_window_size]]
+        frame_list = [z[:, :, :init_window_size]]
 
-        # To chunk the long video 
+        # To chunk the long video
         full_chunk_size = (num_frames - init_window_size) // window_size
         fid = init_window_size
         for idx in range(full_chunk_size):
-            frame_list.append(z[:, :, fid:fid+window_size])
+            frame_list.append(z[:, :, fid : fid + window_size])
             fid += window_size
 
         if fid < num_frames:
@@ -372,15 +392,29 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
         dec = torch.cat(dec_list, dim=2)
         return dec
 
-    def decode(self, z: torch.FloatTensor, is_init_image=True, temporal_chunk=False, 
-            return_dict: bool = True, window_size: int = 2, tile_sample_min_size: int = 256,) -> Union[DecoderOutput, torch.FloatTensor]:
-        
+    def decode(
+        self,
+        z: torch.FloatTensor,
+        is_init_image=True,
+        temporal_chunk=False,
+        return_dict: bool = True,
+        window_size: int = 2,
+        tile_sample_min_size: int = 256,
+    ) -> Union[DecoderOutput, torch.FloatTensor]:
+
         self.tile_sample_min_size = tile_sample_min_size
         self.tile_latent_min_size = int(tile_sample_min_size / self.downsample_scale)
 
-        if self.use_tiling and (z.shape[-1] > self.tile_latent_min_size or z.shape[-2] > self.tile_latent_min_size):
-            return self.tiled_decode(z, is_init_image=is_init_image, 
-                    temporal_chunk=temporal_chunk, window_size=window_size, return_dict=return_dict)
+        if self.use_tiling and (
+            z.shape[-1] > self.tile_latent_min_size or z.shape[-2] > self.tile_latent_min_size
+        ):
+            return self.tiled_decode(
+                z,
+                is_init_image=is_init_image,
+                temporal_chunk=temporal_chunk,
+                window_size=window_size,
+                return_dict=return_dict,
+            )
 
         if temporal_chunk:
             dec = self.chunk_decode(z, window_size=window_size)
@@ -396,17 +430,27 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
     def blend_v(self, a: torch.Tensor, b: torch.Tensor, blend_extent: int) -> torch.Tensor:
         blend_extent = min(a.shape[3], b.shape[3], blend_extent)
         for y in range(blend_extent):
-            b[:, :, :, y, :] = a[:, :, :, -blend_extent + y, :] * (1 - y / blend_extent) + b[:, :, :, y, :] * (y / blend_extent)
+            b[:, :, :, y, :] = a[:, :, :, -blend_extent + y, :] * (1 - y / blend_extent) + b[
+                :, :, :, y, :
+            ] * (y / blend_extent)
         return b
 
     def blend_h(self, a: torch.Tensor, b: torch.Tensor, blend_extent: int) -> torch.Tensor:
         blend_extent = min(a.shape[4], b.shape[4], blend_extent)
         for x in range(blend_extent):
-            b[:, :, :, :, x] = a[:, :, :, :, -blend_extent + x] * (1 - x / blend_extent) + b[:, :, :, :, x] * (x / blend_extent)
+            b[:, :, :, :, x] = a[:, :, :, :, -blend_extent + x] * (1 - x / blend_extent) + b[
+                :, :, :, :, x
+            ] * (x / blend_extent)
         return b
 
-    def tiled_encode(self, x: torch.FloatTensor, return_dict: bool = True, 
-            is_init_image=True, temporal_chunk=False, window_size=16,) -> AutoencoderKLOutput:
+    def tiled_encode(
+        self,
+        x: torch.FloatTensor,
+        return_dict: bool = True,
+        is_init_image=True,
+        temporal_chunk=False,
+        window_size=16,
+    ) -> AutoencoderKLOutput:
         r"""Encode a batch of images using a tiled encoder.
 
         When this option is enabled, the VAE will split the input tensor into tiles to compute encoding in several
@@ -464,8 +508,14 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
 
         return AutoencoderKLOutput(latent_dist=posterior)
 
-    def tiled_decode(self, z: torch.FloatTensor, is_init_image=True, 
-            temporal_chunk=False, window_size=2, return_dict: bool = True) -> Union[DecoderOutput, torch.FloatTensor]:
+    def tiled_decode(
+        self,
+        z: torch.FloatTensor,
+        is_init_image=True,
+        temporal_chunk=False,
+        window_size=2,
+        return_dict: bool = True,
+    ) -> Union[DecoderOutput, torch.FloatTensor]:
         r"""
         Decode a batch of images using a tiled decoder.
 
@@ -523,7 +573,7 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
         sample_posterior: bool = True,
         generator: Optional[torch.Generator] = None,
         freeze_encoder: bool = False,
-        is_init_image=True, 
+        is_init_image=True,
         temporal_chunk=False,
     ) -> Union[DecoderOutput, torch.FloatTensor]:
         r"""
@@ -551,7 +601,7 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
                 posterior = DiagonalGaussianDistribution(moments)
                 global_moments = conv_gather_from_context_parallel_region(moments, dim=2, kernel_size=1)
                 global_posterior = DiagonalGaussianDistribution(global_moments)
-            
+
             if sample_posterior:
                 z = posterior.sample(generator=generator)
             else:
@@ -569,12 +619,14 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
             # The normal training
             if freeze_encoder:
                 with torch.no_grad():
-                    posterior = self.encode(x, is_init_image=is_init_image, 
-                            temporal_chunk=temporal_chunk).latent_dist
+                    posterior = self.encode(
+                        x, is_init_image=is_init_image, temporal_chunk=temporal_chunk
+                    ).latent_dist
             else:
-                posterior = self.encode(x, is_init_image=is_init_image, 
-                        temporal_chunk=temporal_chunk).latent_dist
-        
+                posterior = self.encode(
+                    x, is_init_image=is_init_image, temporal_chunk=temporal_chunk
+                ).latent_dist
+
             if sample_posterior:
                 z = posterior.sample(generator=generator)
             else:
@@ -600,7 +652,9 @@ class CausalVideoVAE(ModelMixin, ConfigMixin):
 
         for _, attn_processor in self.attn_processors.items():
             if "Added" in str(attn_processor.__class__.__name__):
-                raise ValueError("`fuse_qkv_projections()` is not supported for models having added KV projections.")
+                raise ValueError(
+                    "`fuse_qkv_projections()` is not supported for models having added KV projections."
+                )
 
         self.original_attn_processors = self.attn_processors
 

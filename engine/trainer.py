@@ -105,12 +105,10 @@ class Trainer:
 
         # in order not to kickoff sampling mid iteration when using gradient accumulation.
         self.global_step = int(
-            (global_step // self.gradient_accumulation_steps)
-            * self.gradient_accumulation_steps
+            (global_step // self.gradient_accumulation_steps) * self.gradient_accumulation_steps
         )
         self.local_step = int(
-            (local_step // self.gradient_accumulation_steps)
-            * self.gradient_accumulation_steps
+            (local_step // self.gradient_accumulation_steps) * self.gradient_accumulation_steps
         )
 
         self.vae_scale_factor = cfg.MODEL.VAE.SCALE_FACTOR
@@ -147,9 +145,7 @@ class Trainer:
         # Setup preemption handler if running on SLURM
         if "SLURM_JOB_ID" in os.environ:
             signal.signal(signal.SIGUSR1, _preemption_handler)
-            self.logger.info(
-                f"Registered SIGUSR1 handler for job {os.environ['SLURM_JOB_ID']}"
-            )
+            self.logger.info(f"Registered SIGUSR1 handler for job {os.environ['SLURM_JOB_ID']}")
 
     def log_stats(self, loss_dict, tot_iter, epoch, step, timing=None):
         if torch.isnan(loss_dict["train/loss"]):
@@ -175,8 +171,8 @@ class Trainer:
         if step % 100 == 0:
             self.logger.info(
                 f"epoch : {epoch} - global iteration : {tot_iter} - local iteration : {step} "
-                f"alloc_mem : {torch.cuda.memory_allocated()/1000**3:.2E} "
-                f"max_alloc_mem : {torch.cuda.max_memory_allocated()/1000**3:.2E} "
+                f"alloc_mem : {torch.cuda.memory_allocated() / 1000**3:.2E} "
+                f"max_alloc_mem : {torch.cuda.max_memory_allocated() / 1000**3:.2E} "
                 f"- loss : {loss_dict['train/loss']:.2E} "
                 f"- learning rate : {self.optimizer.param_groups[-1]['lr']}"
             )
@@ -200,19 +196,14 @@ class Trainer:
                 with open(ckpt_dir / "local_step.txt", "w") as f:
                     f.write(str(local_step + 1))
 
-            if (
-                int(global_step) % int(self.permanent_ckpt_freq) == 0
-                and global_step > 1
-            ):
+            if int(global_step) % int(self.permanent_ckpt_freq) == 0 and global_step > 1:
                 os.makedirs(os.path.join(self.results_folder, "weights"), exist_ok=True)
                 self.logger.info(f"Iter: {global_step} - Saving FSDP checkpoint.")
                 save_fsdp_model(
                     self.accelerator.state.fsdp_plugin,
                     self.accelerator,
                     self.model,
-                    Path(self.results_folder)
-                    / "weights"
-                    / f"model_{global_step:06d}",
+                    Path(self.results_folder) / "weights" / f"model_{global_step:06d}",
                     **get_fsdp_ckpt_kwargs(),
                 )
             self.accelerator.wait_for_everyone()
@@ -232,9 +223,7 @@ class Trainer:
         # Only rank 0 should requeue
         if proc_id == 0:
             self.logger.warning(f"Requeuing job {os.environ['SLURM_JOB_ID']}")
-            subprocess.run(
-                ["scontrol", "requeue", os.environ["SLURM_JOB_ID"]], check=False
-            )
+            subprocess.run(["scontrol", "requeue", os.environ["SLURM_JOB_ID"]], check=False)
         else:
             self.logger.warning("Not the master process, no need to requeue.")
 
@@ -286,19 +275,16 @@ class Trainer:
             self.accelerator.wait_for_everyone()
 
             # Setup dataloader for epoch:
-            if (
-                isinstance(self.dataloader, ConcatDataloader)
-                or self.dataloader_style == "map_style"
-            ):
+            if isinstance(self.dataloader, ConcatDataloader) or self.dataloader_style == "map_style":
                 self.dataloader.set_epoch(epoch + 1)
                 if self.extra_dataloader is not None:
                     if hasattr(self.extra_dataloader, "pipeline"):
                         self.extra_dataloader.pipeline[0].dataset.pipeline[1].seed = (
                             epoch + 1 + self.accelerator.process_index
                         )
-                        self.extra_dataloader.pipeline[0].dataset.pipeline[
-                            0
-                        ].reshuffle_shards(local_idx=self.accelerator.process_index)
+                        self.extra_dataloader.pipeline[0].dataset.pipeline[0].reshuffle_shards(
+                            local_idx=self.accelerator.process_index
+                        )
                     else:
                         self.extra_dataloader.set_epoch(epoch + 1)
             else:
@@ -311,14 +297,13 @@ class Trainer:
                         local_idx=self.accelerator.process_index
                     )
                     if self.extra_dataloader is not None:
-
                         if hasattr(self.extra_dataloader, "pipeline"):
-                            self.extra_dataloader.pipeline[0].dataset.pipeline[
-                                1
-                            ].seed = (epoch + 1 + self.accelerator.process_index)
-                            self.extra_dataloader.pipeline[0].dataset.pipeline[
-                                0
-                            ].reshuffle_shards(local_idx=self.accelerator.process_index)
+                            self.extra_dataloader.pipeline[0].dataset.pipeline[1].seed = (
+                                epoch + 1 + self.accelerator.process_index
+                            )
+                            self.extra_dataloader.pipeline[0].dataset.pipeline[0].reshuffle_shards(
+                                local_idx=self.accelerator.process_index
+                            )
                         else:
                             self.extra_dataloader.set_epoch(epoch + 1)
 
@@ -328,15 +313,11 @@ class Trainer:
 
             active_dataloader = self.dataloader
             extra_dataloader = (
-                iter(self.extra_dataloader)
-                if self.extra_dataloader is not None
-                else none_iterator()
+                iter(self.extra_dataloader) if self.extra_dataloader is not None else none_iterator()
             )
             # Training iterations.
             t_data_start = time.time()
-            for step, (batch, extra_batch) in enumerate(
-                zip(active_dataloader, extra_dataloader)
-            ):
+            for step, (batch, extra_batch) in enumerate(zip(active_dataloader, extra_dataloader)):
                 t_data_end = time.time()
                 # Initialize EMA.
                 if self.global_step == self.ema_start:
@@ -356,10 +337,7 @@ class Trainer:
                                 extra_batch=None,
                             )
                         prof.export_chrome_trace(
-                            str(
-                                self.trace_dir
-                                / f"trace_{self.accelerator.process_index}.json"
-                            )
+                            str(self.trace_dir / f"trace_{self.accelerator.process_index}.json")
                         )
                     else:
                         t_step_start = time.time()
@@ -369,12 +347,8 @@ class Trainer:
                             extra_batch=extra_batch,
                         )
                         t_step_end = time.time()
-                        train_tuple.time_dict.update(
-                            {"timings/train_step": t_step_end - t_step_start}
-                        )
-                train_tuple.time_dict.update(
-                    {"timings/dataloading": t_data_end - t_data_start}
-                )
+                        train_tuple.time_dict.update({"timings/train_step": t_step_end - t_step_start})
+                train_tuple.time_dict.update({"timings/dataloading": t_data_end - t_data_start})
                 epoch_loss += train_tuple.loss
 
                 self.local_step = step
@@ -386,16 +360,10 @@ class Trainer:
                     t_ema_start = time.time()
                     update_ema(self.ema, self.model, decay=self.ema_decay)
                     t_ema_end = time.time()
-                    train_tuple.time_dict.update(
-                        {"timings/ema": t_ema_end - t_ema_start}
-                    )
+                    train_tuple.time_dict.update({"timings/ema": t_ema_end - t_ema_start})
 
                 # Save snapshots
-                if (
-                    self.global_step % self.save_and_sample_every == 0
-                    and self.global_step > 1
-                ):
-
+                if self.global_step % self.save_and_sample_every == 0 and self.global_step > 1:
                     if self.global_step >= self.ema_start:
                         self.log_target = "ema"
                     target_ = self.model if self.log_target == "model" else self.ema
@@ -455,7 +423,7 @@ class Trainer:
 
             # End of epoch
             epoch_loss = epoch_loss.detach().cpu().item()
-            self.logger.info(f"end of epoch : {epoch} - epoch loss : {epoch_loss/step}")
+            self.logger.info(f"end of epoch : {epoch} - epoch loss : {epoch_loss / step}")
             self.accelerator.log(
                 {
                     "train/loss_epoch": epoch_loss / step,
@@ -475,9 +443,7 @@ class Trainer:
         """
         return torch.cat(
             [
-                self.vae.decode(
-                    self.vae_shift_factor + latents_batch / self.vae_scale_factor
-                ).sample
+                self.vae.decode(self.vae_shift_factor + latents_batch / self.vae_scale_factor).sample
                 for latents_batch in latents.split(self.dec_batch_size)
             ]
         )
@@ -511,12 +477,7 @@ class Trainer:
         images = []
         for t in steps:
             with self.accelerator.autocast():
-                dec_img = (
-                    self.split_and_decode(latents[t][:num_samples])
-                    .detach()
-                    .cpu()
-                    .numpy()
-                )
+                dec_img = self.split_and_decode(latents[t][:num_samples]).detach().cpu().numpy()
             dec_img = (dec_img + 1.0) / 2.0
             dec_img = dec_img.transpose(0, 2, 3, 1).clip(0, 1)
             images.append(dec_img)
@@ -534,8 +495,7 @@ class Trainer:
         images = (255.0 * images).clip(0, 255).astype(np.uint8)
         for idx, img_np in enumerate(images):
             Image.fromarray(img_np).save(
-                Path(directory)
-                / f"sample_{step}_{idx}_dev_{self.accelerator.process_index}.png"
+                Path(directory) / f"sample_{step}_{idx}_dev_{self.accelerator.process_index}.png"
             )
 
     def renormalize(self, x):
@@ -546,9 +506,7 @@ class Trainer:
 
     def save_samples(self, samples, captions=None):
         os.makedirs(Path(self.results_folder) / "generations", exist_ok=True)
-        os.makedirs(
-            Path(self.results_folder) / "generations" / "captions", exist_ok=True
-        )
+        os.makedirs(Path(self.results_folder) / "generations" / "captions", exist_ok=True)
         images = samples[-1].permute(0, 2, 3, 1).cpu().numpy()
         del samples
         images = (images + 1.0) / 2.0

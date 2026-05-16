@@ -22,9 +22,7 @@ class EvaluationResult:
     blocked_rules: list[dict[str, Any]] = field(default_factory=list)
     warnings: list[dict[str, Any]] = field(default_factory=list)
     auto_fixes: dict[str, Any] = field(default_factory=dict)
-    workflow_recommendations: list[dict[str, Any]] = field(
-        default_factory=list
-    )
+    workflow_recommendations: list[dict[str, Any]] = field(default_factory=list)
     dependency_plan: dict[str, Any] = field(default_factory=dict)
     source_plan: dict[str, Any] = field(default_factory=dict)
 
@@ -60,54 +58,37 @@ def _applies(applies_when: dict[str, Any], profile: dict[str, Any]) -> bool:
         return False
 
     selected_deps = profile.get("selectedDeps", [])
-    if (
-        "selectedDepsAny" in applies_when
-        and not _intersects(selected_deps, applies_when["selectedDepsAny"])
-    ):
+    if "selectedDepsAny" in applies_when and not _intersects(selected_deps, applies_when["selectedDepsAny"]):
         return False
 
     workflows = profile.get("workflow", [])
     if isinstance(workflows, str):
         workflows = [workflows]
-    if (
-        "workflowAny" in applies_when
-        and not _intersects(workflows, applies_when["workflowAny"])
-    ):
+    if "workflowAny" in applies_when and not _intersects(workflows, applies_when["workflowAny"]):
         return False
 
     model_variant = profile.get("modelVariant")
-    if (
-        "modelVariantAny" in applies_when
-        and model_variant not in applies_when["modelVariantAny"]
-    ):
+    if "modelVariantAny" in applies_when and model_variant not in applies_when["modelVariantAny"]:
         return False
 
     integration_intent = profile.get("integrationIntent")
-    if (
-        "integrationIntent" in applies_when
-        and integration_intent not in applies_when["integrationIntent"]
-    ):
+    if "integrationIntent" in applies_when and integration_intent not in applies_when["integrationIntent"]:
         return False
 
     if "freeDiskTbLessThan" in applies_when:
         free_disk_tb = profile.get("freeDiskTb")
-        if free_disk_tb is None or free_disk_tb >= applies_when[
-            "freeDiskTbLessThan"
-        ]:
+        if free_disk_tb is None or free_disk_tb >= applies_when["freeDiskTbLessThan"]:
             return False
 
     if "licenseAcceptanceRequired" in applies_when:
         required = applies_when["licenseAcceptanceRequired"]
-        if bool(profile.get("licenseAcceptanceRequired", False)) != bool(
-            required
-        ):
+        if bool(profile.get("licenseAcceptanceRequired", False)) != bool(required):
             return False
 
-    if "licenseAccepted" in applies_when:
-        if bool(profile.get("licenseAccepted", False)) != bool(
-            applies_when["licenseAccepted"]
-        ):
-            return False
+    if "licenseAccepted" in applies_when and bool(profile.get("licenseAccepted", False)) != bool(
+        applies_when["licenseAccepted"]
+    ):
+        return False
 
     if "installStatus" in applies_when:
         status = profile.get("installStatus")
@@ -174,9 +155,7 @@ def evaluate_policy(
     return findings, auto_fixes
 
 
-def recommend_workflows(
-    policy: dict[str, Any], profile: dict[str, Any]
-) -> list[dict[str, Any]]:
+def recommend_workflows(policy: dict[str, Any], profile: dict[str, Any]) -> list[dict[str, Any]]:
     recommendations: list[dict[str, Any]] = []
     hardware_profile = profile.get("hardwareProfile")
 
@@ -188,9 +167,7 @@ def recommend_workflows(
     return recommendations
 
 
-def build_dependency_plan(
-    matrix: dict[str, Any], profile: dict[str, Any]
-) -> dict[str, Any]:
+def build_dependency_plan(matrix: dict[str, Any], profile: dict[str, Any]) -> dict[str, Any]:
     os_value = profile.get("os")
 
     blocked: list[dict[str, Any]] = []
@@ -203,17 +180,13 @@ def build_dependency_plan(
     return {
         "essential": matrix.get("decisionMatrix", {}).get("essential", []),
         "optional": matrix.get("decisionMatrix", {}).get("optional", []),
-        "experimental": matrix.get("decisionMatrix", {}).get(
-            "experimental", []
-        ),
+        "experimental": matrix.get("decisionMatrix", {}).get("experimental", []),
         "blockedForProfile": blocked,
         "autoConfigProfiles": matrix.get("autoConfigProfiles", []),
     }
 
 
-def build_source_plan(
-    monitoring: dict[str, Any], profile: dict[str, Any]
-) -> dict[str, Any]:
+def build_source_plan(monitoring: dict[str, Any], profile: dict[str, Any]) -> dict[str, Any]:
     sources = monitoring.get("topSources", [])
     source_feedback = profile.get("sourceFeedback", {})
 
@@ -225,9 +198,9 @@ def build_source_plan(
         if source_feedback.get(src_copy.get("url")) == "not_helpful":
             score -= 0.25
             src_copy["confidence"] = "low"
-            src_copy["label"] = monitoring.get(
-                "demotionAndLabeling", {}
-            ).get("lowConfidenceLabel", "Low Confidence")
+            src_copy["label"] = monitoring.get("demotionAndLabeling", {}).get(
+                "lowConfidenceLabel", "Low Confidence"
+            )
 
         src_copy["effectiveScore"] = max(0.0, min(1.0, round(score, 3)))
         evaluated.append(src_copy)
@@ -236,9 +209,7 @@ def build_source_plan(
         key=lambda x: x.get("effectiveScore", 0.0),
         reverse=True,
     )
-    target_count = monitoring.get("monitoringPolicy", {}).get(
-        "targetCount", 10
-    )
+    target_count = monitoring.get("monitoringPolicy", {}).get("targetCount", 10)
 
     return {
         "topRanked": evaluated[:target_count],
@@ -284,9 +255,7 @@ def result_to_dict(result: EvaluationResult) -> dict[str, Any]:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Evaluate Flowception installer profile."
-    )
+    parser = argparse.ArgumentParser(description="Evaluate Flowception installer profile.")
     parser.add_argument(
         "--profile",
         type=str,

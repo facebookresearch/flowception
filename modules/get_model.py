@@ -87,8 +87,6 @@ def get_denoiser(cfg, device="cpu"):
         return ltxn_98_models[public_key](**_ltx_kwargs(cfg))
 
     supported = sorted(
-        set(FlowceptionV1_models)
-        | {f"T2I-{name}" for name in FlowceptionV1_models}
-        | set(ltxn_98_models)
+        set(FlowceptionV1_models) | {f"T2I-{name}" for name in FlowceptionV1_models} | set(ltxn_98_models)
     )
     raise ValueError(f"Unsupported MODEL.CONDITION '{condition}'. Supported public models: {supported}")

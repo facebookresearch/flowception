@@ -20,16 +20,16 @@ class MomentumBuffer:
                         new_len - old_len,
                         *self.running_average.shape[2:],
                         device=self.running_average.device,
-                        dtype=self.running_average.dtype
+                        dtype=self.running_average.dtype,
                     )
                     self.running_average = torch.cat([self.running_average, padding], dim=1)
                 else:
                     # Truncate
                     self.running_average = self.running_average[:, :new_len]
-        
+
         new_average = self.momentum * self.running_average
         self.running_average = new_average + update_value
-        
+
     def clear(self):
         self.running_average = 0
 
@@ -64,10 +64,10 @@ def normalized_guidance(
         scale_factor = torch.minimum(ones, norm_threshold / diff_norm)
         diff = diff * scale_factor
     diff_parallel, diff_orthogonal = project(diff, pred_cond)
-    
+
     # dp = diff_parallel.norm(2, dim=(-1,-2,-3)).cpu().numpy()
     # do = diff_orthogonal.norm(2, dim=(-1,-2,-3)).cpu().numpy()
-    
+
     normalized_update = diff_orthogonal + eta * diff_parallel
     pred_guided = pred_cond + (guidance_scale - 1) * normalized_update
     # pred_guided = guidance_scale * pred_cond + (1-guidance_scale) * pred_uncond

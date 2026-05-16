@@ -750,7 +750,9 @@ class FlowceptionInterpolate(Trainer):
 
         if any_nan:
             if local_nan.item():
-                self.logger.warning(f"[Rank {self.accelerator.process_index}] Detected NaN, saving crash data")
+                self.logger.warning(
+                    f"[Rank {self.accelerator.process_index}] Detected NaN, saving crash data"
+                )
 
                 crash_dir = Path(self.results_folder) / "crash_data_rank{}".format(
                     self.accelerator.process_index
@@ -767,7 +769,9 @@ class FlowceptionInterpolate(Trainer):
                     crash_dir / "inputs.pt",
                 )
 
-                self.logger.warning(f"[Rank {self.accelerator.process_index}] Saved crash data to {crash_dir}")
+                self.logger.warning(
+                    f"[Rank {self.accelerator.process_index}] Saved crash data to {crash_dir}"
+                )
 
             self.accelerator.wait_for_everyone()
 

@@ -84,22 +84,32 @@ def get_vae(cfg, device):
         vae = ltx_vae.from_pretrained("Lightricks/LTX-Video", subfolder="vae").to(device).eval()
     elif name == "LTX_AE_0_9_5":
         ltx_vae = _require_ltx()
-        vae = ltx_vae.from_pretrained(
-            "Lightricks/LTX-Video-0.9.5",
-            subfolder="vae",
-            torch_dtype=torch.bfloat16,
-        ).to(device).eval()
+        vae = (
+            ltx_vae.from_pretrained(
+                "Lightricks/LTX-Video-0.9.5",
+                subfolder="vae",
+                torch_dtype=torch.bfloat16,
+            )
+            .to(device)
+            .eval()
+        )
     elif name == "LTX_AE_0_9_8":
         ltx_vae = _require_ltx()
-        vae = ltx_vae.from_pretrained(
-            "Lightricks/LTX-Video-0.9.8-13B-distilled",
-            subfolder="vae",
-            torch_dtype=torch.bfloat16,
-        ).to(device).eval()
+        vae = (
+            ltx_vae.from_pretrained(
+                "Lightricks/LTX-Video-0.9.8-13B-distilled",
+                subfolder="vae",
+                torch_dtype=torch.bfloat16,
+            )
+            .to(device)
+            .eval()
+        )
     elif name == "COSMOS_1_X8":
         cosmos_vae = _require_cosmos()
         if cfg.MODEL.VAE.CHECKPOINT == "":
-            raise ValueError("COSMOS_1_X8 requires MODEL.VAE.CHECKPOINT to point to the Cosmos tokenizer directory.")
+            raise ValueError(
+                "COSMOS_1_X8 requires MODEL.VAE.CHECKPOINT to point to the Cosmos tokenizer directory."
+            )
         vae = cosmos_vae("Cosmos-1.0-Tokenizer-CV8x8x8", cfg.MODEL.VAE.CHECKPOINT, device=device)
     else:
         supported = ", ".join(sorted(SUPPORTED_VAES))

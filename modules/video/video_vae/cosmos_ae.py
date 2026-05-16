@@ -2,11 +2,13 @@ import torch
 import torch.nn as nn
 from dataclasses import dataclass
 from diffusers.utils import BaseOutput
+
 try:
     from cosmos_tokenizer.video_lib import CausalVideoTokenizer
 except ImportError:
     CausalVideoTokenizer = None
 import torch.nn.functional as F
+
 
 @dataclass
 class DecoderOutput(BaseOutput):
@@ -20,17 +22,22 @@ class DecoderOutput(BaseOutput):
 
     sample: torch.FloatTensor
 
-class DummyLatentDist():
+
+class DummyLatentDist:
     def __init__(self, latents):
         self.latents = latents
 
     def forward(self):
         return self.latents
 
-    def sample(self,):
+    def sample(
+        self,
+    ):
         return self.forward()
-    
-    def mode(self,):
+
+    def mode(
+        self,
+    ):
         return self.forward()
 
 
@@ -46,39 +53,54 @@ class DecoderLatentDist(BaseOutput):
 
     latent_dist: DummyLatentDist
 
+
 class CosmosVAE(nn.Module):
     def __init__(self, model_name, weights_dir, device, dtype="bf16"):
         super().__init__()
-        self.encoder = torch.compile(CausalVideoTokenizer(checkpoint_enc=f'{weights_dir}/{model_name}/encoder.jit', device=device))
-        self.decoder = torch.compile(CausalVideoTokenizer(checkpoint_dec=f'{weights_dir}/{model_name}/decoder.jit', device=device))
+        self.encoder = torch.compile(
+            CausalVideoTokenizer(checkpoint_enc=f"{weights_dir}/{model_name}/encoder.jit", device=device)
+        )
+        self.decoder = torch.compile(
+            CausalVideoTokenizer(checkpoint_dec=f"{weights_dir}/{model_name}/decoder.jit", device=device)
+        )
 
     def encode(self, x, temporal_chunk=False):
         return DecoderLatentDist(DummyLatentDist(self.encoder.encode(x)[0]))
-    
+
     def decode(self, x, temporal_chunk=False):
         return DecoderOutput(self.decoder.decode(x))
-    
-    
+
+
 from dataclasses import dataclass
 from diffusers.utils import BaseOutput
 
 # ------------------ diffusers-style outputs ------------------
 
+
 @dataclass
 class DecoderOutput(BaseOutput):
     sample: torch.FloatTensor  # [B, C, T, H, W] in [-1,1] (or whatever your Cosmos returns)
 
+
 class _DummyLatentDist:
     def __init__(self, latents: torch.Tensor):
         self._latents = latents
-    def forward(self): return self._latents
-    def sample(self):  return self._latents
-    def mode(self):    return self._latents
+
+    def forward(self):
+        return self._latents
+
+    def sample(self):
+        return self._latents
+
+    def mode(self):
+        return self._latents
+
 
 @dataclass
 class DecoderLatentDist(BaseOutput):
     latent_dist: _DummyLatentDist  # holder to mimic diffusers VAE API
-    
+
+
 def space_to_depth_latents(z: torch.Tensor, s: int) -> torch.Tensor:
     """
     z: [B, C, T, H, W]  (latents from Cosmos encoder)
@@ -89,10 +111,11 @@ def space_to_depth_latents(z: torch.Tensor, s: int) -> torch.Tensor:
     B, C, T, H, W = z.shape
     assert H % s == 0 and W % s == 0, f"latent H/W must be divisible by s={s}"
     # Use pixel_unshuffle per time-slice (F.pixel_unshuffle expects [B,C,H,W])
-    z2 = z.permute(0, 2, 1, 3, 4).contiguous().view(B*T, C, H, W)       # [B*T, C, H, W]
-    z2 = F.pixel_unshuffle(z2, downscale_factor=s)                       # [B*T, C*s*s, H//s, W//s]
-    z2 = z2.view(B, T, C*s*s, H//s, W//s).permute(0, 2, 1, 3, 4).contiguous()
+    z2 = z.permute(0, 2, 1, 3, 4).contiguous().view(B * T, C, H, W)  # [B*T, C, H, W]
+    z2 = F.pixel_unshuffle(z2, downscale_factor=s)  # [B*T, C*s*s, H//s, W//s]
+    z2 = z2.view(B, T, C * s * s, H // s, W // s).permute(0, 2, 1, 3, 4).contiguous()
     return z2
+
 
 def depth_to_space_latents(z: torch.Tensor, s: int) -> torch.Tensor:
     """
@@ -102,12 +125,13 @@ def depth_to_space_latents(z: torch.Tensor, s: int) -> torch.Tensor:
     if s == 1:
         return z
     B, C2, T, H2, W2 = z.shape
-    assert C2 % (s*s) == 0, f"channels must be divisible by s^2={s*s}"
-    C = C2 // (s*s)
-    z2 = z.permute(0, 2, 1, 3, 4).contiguous().view(B*T, C2, H2, W2)     # [B*T, C*s*s, H2, W2]
-    z2 = F.pixel_shuffle(z2, upscale_factor=s)                           # [B*T, C, H2*s, W2*s]
-    z2 = z2.view(B, T, C, H2*s, W2*s).permute(0, 2, 1, 3, 4).contiguous()
+    assert C2 % (s * s) == 0, f"channels must be divisible by s^2={s * s}"
+    C = C2 // (s * s)
+    z2 = z.permute(0, 2, 1, 3, 4).contiguous().view(B * T, C2, H2, W2)  # [B*T, C*s*s, H2, W2]
+    z2 = F.pixel_shuffle(z2, upscale_factor=s)  # [B*T, C, H2*s, W2*s]
+    z2 = z2.view(B, T, C, H2 * s, W2 * s).permute(0, 2, 1, 3, 4).contiguous()
     return z2
+
 
 class CosmosVAE_Space2Depth(nn.Module):
     """
@@ -117,6 +141,7 @@ class CosmosVAE_Space2Depth(nn.Module):
     - decode(): depth-to-space on latents, then Cosmos decoder
     This is lossless (invertible) and requires no retraining.
     """
+
     def __init__(self, base_vae: CosmosVAE, s_extra: int = 4):
         super().__init__()
         assert s_extra >= 1 and int(s_extra) == s_extra

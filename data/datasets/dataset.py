@@ -23,9 +23,7 @@ _dataset_classes = {}
 _dataset_classes.update(_try_import("data.datasets.video.openvid", "OpenVid1MDataset"))
 _dataset_classes.update(_try_import("data.datasets.video.openvid_flowception", "OpenVid1MFlowception"))
 _dataset_classes.update(_try_import("data.datasets.video.kinetics_flowception", "KineticsDatasetFlowception"))
-_dataset_classes.update(
-    _try_import("data.datasets.video.custom_subjectness", "CustomSubjectnessFlowception")
-)
+_dataset_classes.update(_try_import("data.datasets.video.custom_subjectness", "CustomSubjectnessFlowception"))
 _dataset_classes.update(
     _try_import(
         "data.datasets.video.custom_subjectness_aug",
@@ -122,7 +120,9 @@ def get_all_datasets(cfg: CfgNode, logger: LoggerAdapter, num_gpus: int, seed: i
         dataset_vars = dataset_vars * len(dataset_names)
 
     train_datasets = []
-    for dataset_name, dataset_root, dataset_var in zip(dataset_names, dataset_roots, dataset_vars, strict=False):
+    for dataset_name, dataset_root, dataset_var in zip(
+        dataset_names, dataset_roots, dataset_vars, strict=False
+    ):
         train_dataset, _ = get_dataset(
             dataset_name=dataset_name,
             dataset_root=dataset_root,
@@ -137,7 +137,9 @@ def get_all_datasets(cfg: CfgNode, logger: LoggerAdapter, num_gpus: int, seed: i
 
     val_dataset_name = cfg.DATA.VAL_DATASET.lower() if cfg.DATA.VAL_DATASET else dataset_names[0]
     val_dataset_root = cfg.DATA.VAL_DATA_ROOT if cfg.DATA.VAL_DATA_ROOT else dataset_roots[0]
-    val_dataset_var = cfg.DATA.VAL_DATASET_VARIANT.upper() if cfg.DATA.VAL_DATASET_VARIANT else dataset_vars[0]
+    val_dataset_var = (
+        cfg.DATA.VAL_DATASET_VARIANT.upper() if cfg.DATA.VAL_DATASET_VARIANT else dataset_vars[0]
+    )
     if not cfg.DATA.VAL_DATASET:
         logger.info(f"No validation dataset specified. Defaulting to {val_dataset_name}.")
 
@@ -155,7 +157,9 @@ def get_all_datasets(cfg: CfgNode, logger: LoggerAdapter, num_gpus: int, seed: i
     return train_datasets, val_dataset
 
 
-def get_extra_datasets(cfg: CfgNode, logger: LoggerAdapter, num_gpus: int, seed: int = 0, start_epoch: int = 0):
+def get_extra_datasets(
+    cfg: CfgNode, logger: LoggerAdapter, num_gpus: int, seed: int = 0, start_epoch: int = 0
+):
     dataset_names = _split_cfg_value(cfg.DATA.EXTRA_DATASETS)
     dataset_roots = _split_cfg_value(cfg.DATA.DATA_ROOT) or [""]
     if len(dataset_roots) == 1 and len(dataset_names) > 1:
@@ -202,7 +206,9 @@ def _toy_coloring(cfg: CfgNode):
     return train_dataset, val_dataset
 
 
-def _custom_webdataset(cfg: CfgNode, paths: CfgNode, num_gpus: int, start_epoch: int, aes_filter: bool = False):
+def _custom_webdataset(
+    cfg: CfgNode, paths: CfgNode, num_gpus: int, start_epoch: int, aes_filter: bool = False
+):
     import webdataset as wds
 
     processor_cls = _dataset_class("CustomWebDatasetProcessor")
@@ -250,7 +256,9 @@ def _custom_webdataset(cfg: CfgNode, paths: CfgNode, num_gpus: int, start_epoch:
 
         pipeline_steps.append(wds.select(filtering))
 
-    pipeline_steps.append(wds.batched(cfg.SOLVER.BATCH_SIZE, collation_fn=torch.utils.data.default_collate, partial=False))
+    pipeline_steps.append(
+        wds.batched(cfg.SOLVER.BATCH_SIZE, collation_fn=torch.utils.data.default_collate, partial=False)
+    )
     dataset = wds.DataPipeline(*pipeline_steps, repetitions=10**7).with_epoch(epoch_length)
 
     return dataset, dataset

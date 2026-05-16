@@ -11,6 +11,7 @@ import timm.models.hub as timm_hub
 import hashlib
 import requests
 from tqdm import tqdm
+
 try:
     import piq
 except:
@@ -152,7 +153,7 @@ def convert_weights_to_bf16(model: nn.Module):
     model.apply(_convert_weights_to_bf16)
 
 
-def save_result(result, result_dir, filename, remove_duplicate="", save_format='json'):
+def save_result(result, result_dir, filename, remove_duplicate="", save_format="json"):
     import json
     import jsonlines
 
@@ -163,10 +164,8 @@ def save_result(result, result_dir, filename, remove_duplicate="", save_format='
         if is_dist_avail_and_initialized():
             torch.distributed.barrier()
 
-    result_file = os.path.join(
-        result_dir, "%s_rank%d.json" % (filename, get_rank())
-    )
-    
+    result_file = os.path.join(result_dir, "%s_rank%d.json" % (filename, get_rank()))
+
     final_result_file = os.path.join(result_dir, f"{filename}.{save_format}")
 
     json.dump(result, open(result_file, "w"))
@@ -191,10 +190,10 @@ def save_result(result, result_dir, filename, remove_duplicate="", save_format='
                     result_new.append(res)
             result = result_new
 
-        if save_format == 'json':
+        if save_format == "json":
             json.dump(result, open(final_result_file, "w"))
         else:
-            assert save_format == 'jsonl', "Only support json adn jsonl format"
+            assert save_format == "jsonl", "Only support json adn jsonl format"
             with jsonlines.open(final_result_file, "w") as writer:
                 writer.write_all(result)
 
@@ -224,7 +223,9 @@ def _resize_with_antialiasing(input, size, interpolation="bicubic", align_corner
 
     input = _gaussian_blur2d(input, ks, sigmas)
 
-    output = torch.nn.functional.interpolate(input, size=size, mode=interpolation, align_corners=align_corners)
+    output = torch.nn.functional.interpolate(
+        input, size=size, mode=interpolation, align_corners=align_corners
+    )
     return output
 
 
@@ -280,7 +281,9 @@ def _gaussian(window_size: int, sigma):
 
     batch_size = sigma.shape[0]
 
-    x = (torch.arange(window_size, device=sigma.device, dtype=sigma.dtype) - window_size // 2).expand(batch_size, -1)
+    x = (torch.arange(window_size, device=sigma.device, dtype=sigma.dtype) - window_size // 2).expand(
+        batch_size, -1
+    )
 
     if window_size % 2 == 0:
         x = x + 0.5
@@ -306,17 +309,11 @@ def _gaussian_blur2d(input, kernel_size, sigma):
     return out
 
 
-URL_MAP = {
-    "vgg_lpips": "https://heibox.uni-heidelberg.de/f/607503859c864bc1b30b/?dl=1"
-}
+URL_MAP = {"vgg_lpips": "https://heibox.uni-heidelberg.de/f/607503859c864bc1b30b/?dl=1"}
 
-CKPT_MAP = {
-    "vgg_lpips": "vgg.pth"
-}
+CKPT_MAP = {"vgg_lpips": "vgg.pth"}
 
-MD5_MAP = {
-    "vgg_lpips": "d507d7349b931f0638a25a48a722f98a"
-}
+MD5_MAP = {"vgg_lpips": "d507d7349b931f0638a25a48a722f98a"}
 
 
 def download(url, local_path, chunk_size=1024):
@@ -363,9 +360,7 @@ class KeyNotFoundError(Exception):
         super().__init__(message)
 
 
-def retrieve(
-    list_or_dict, key, splitval="/", default=None, expand=True, pass_success=False
-):
+def retrieve(list_or_dict, key, splitval="/", default=None, expand=True, pass_success=False):
     """Given a nested list or dict return the desired value at key expanding
     callable nodes if necessary and :attr:`expand` is ``True``. The expansion
     is done in-place.
@@ -408,9 +403,7 @@ def retrieve(
             if callable(list_or_dict):
                 if not expand:
                     raise KeyNotFoundError(
-                        ValueError(
-                            "Trying to get past callable node with expand=False."
-                        ),
+                        ValueError("Trying to get past callable node with expand=False."),
                         keys=keys,
                         visited=visited,
                     )

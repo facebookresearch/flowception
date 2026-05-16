@@ -16,7 +16,7 @@
 """
 LTX Video Transformer Wrapper with support for:
 - LTX 0.9.5 (2B)
-- LTX 0.9.7 (13B dev/distilled)  
+- LTX 0.9.7 (13B dev/distilled)
 - LTX 0.9.8 (13B dev/distilled, 2B distilled)
 
 Key architecture differences:
@@ -39,7 +39,14 @@ import torch.nn as nn
 
 from diffusers.configuration_utils import ConfigMixin, register_to_config
 from diffusers.loaders import FromOriginalModelMixin, PeftAdapterMixin
-from diffusers.utils import USE_PEFT_BACKEND, deprecate, is_torch_version, logging, scale_lora_layers, unscale_lora_layers
+from diffusers.utils import (
+    USE_PEFT_BACKEND,
+    deprecate,
+    is_torch_version,
+    logging,
+    scale_lora_layers,
+    unscale_lora_layers,
+)
 from diffusers.utils.torch_utils import maybe_allow_in_graph
 from diffusers.models._modeling_parallel import ContextParallelInput, ContextParallelOutput
 from diffusers.models.attention import AttentionMixin, AttentionModuleMixin, FeedForward
@@ -56,6 +63,7 @@ logger = logging.get_logger(__name__)
 
 class LTXModelVersion(str, Enum):
     """Available LTX model versions."""
+
     LTXV_2B_095 = "ltxv-2b-0.9.5"
     LTXV_2B_096_DEV = "ltxv-2b-0.9.6-dev"
     LTXV_2B_096_DISTILLED = "ltxv-2b-0.9.6-distilled"
@@ -97,25 +105,27 @@ LTX_MODEL_CONFIGS = {
 # Maps model registry key → (hf_repo_id, subfolder inside the repo)
 _HF_PRETRAINED_MAP = {
     # 2B variants
-    "ltx2b":              ("Lightricks/LTX-Video", "ltxv-2b-0.9.5/model_files"),
-    "ltx2b-distilled":    ("Lightricks/LTX-Video", "ltxv-2b-0.9.5/model_files"),
+    "ltx2b": ("Lightricks/LTX-Video", "ltxv-2b-0.9.5/model_files"),
+    "ltx2b-distilled": ("Lightricks/LTX-Video", "ltxv-2b-0.9.5/model_files"),
     "ltx2b-p2-distilled": ("Lightricks/LTX-Video", "ltxv-2b-0.9.5/model_files"),
-    "ltx2b-0.9.6-dev":        ("Lightricks/LTX-Video", "ltxv-2b-0.9.6-dev/model_files"),
-    "ltx2b-0.9.6-distilled":  ("Lightricks/LTX-Video", "ltxv-2b-0.9.6-distilled/model_files"),
-    "ltx2b-0.9.8-distilled":  ("Lightricks/LTX-Video", "ltxv-2b-0.9.8-distilled/model_files"),
+    "ltx2b-0.9.6-dev": ("Lightricks/LTX-Video", "ltxv-2b-0.9.6-dev/model_files"),
+    "ltx2b-0.9.6-distilled": ("Lightricks/LTX-Video", "ltxv-2b-0.9.6-distilled/model_files"),
+    "ltx2b-0.9.8-distilled": ("Lightricks/LTX-Video", "ltxv-2b-0.9.8-distilled/model_files"),
     # 13B variants
-    "ltx13b-distilled":       ("Lightricks/LTX-Video", "ltxv-13b-0.9.8-distilled/model_files"),
-    "ltx13b-0.9.7-dev":       ("Lightricks/LTX-Video", "ltxv-13b-0.9.7-dev/model_files"),
+    "ltx13b-distilled": ("Lightricks/LTX-Video", "ltxv-13b-0.9.8-distilled/model_files"),
+    "ltx13b-0.9.7-dev": ("Lightricks/LTX-Video", "ltxv-13b-0.9.7-dev/model_files"),
     "ltx13b-0.9.7-distilled": ("Lightricks/LTX-Video", "ltxv-13b-0.9.7-distilled/model_files"),
-    "ltx13b-0.9.8-dev":       ("Lightricks/LTX-Video", "ltxv-13b-0.9.8-dev/model_files"),
+    "ltx13b-0.9.8-dev": ("Lightricks/LTX-Video", "ltxv-13b-0.9.8-dev/model_files"),
 }
 
 
 def _fetch_pretrained_checkpoint(model_key: str) -> str:
     """Download the pretrained LTX weights from HuggingFace and return the local directory path."""
     if model_key not in _HF_PRETRAINED_MAP:
-        raise ValueError(f"No pretrained HF weights registered for model key '{model_key}'. "
-                         f"Known keys: {list(_HF_PRETRAINED_MAP)}")
+        raise ValueError(
+            f"No pretrained HF weights registered for model key '{model_key}'. "
+            f"Known keys: {list(_HF_PRETRAINED_MAP)}"
+        )
     repo_id, subfolder = _HF_PRETRAINED_MAP[model_key]
     logger.info(f"Downloading pretrained weights for '{model_key}' from {repo_id}/{subfolder} ...")
     local_dir = snapshot_download(
@@ -154,19 +164,21 @@ def _pad_rope_for_frame_tokens(
     This gives frame tokens position (t, H/2, W/2) so they're close to their frame's tokens.
     """
     B, S_img, C = cos.shape
-    assert S_img == num_frames * tokens_per_frame, f"RoPE len mismatch: {S_img} vs {num_frames*tokens_per_frame}"
+    assert S_img == num_frames * tokens_per_frame, (
+        f"RoPE len mismatch: {S_img} vs {num_frames * tokens_per_frame}"
+    )
 
     cos4 = cos.view(B, num_frames, tokens_per_frame, C)
     sin4 = sin.view(B, num_frames, tokens_per_frame, C)
 
     # Use center spatial position for each frame token
     center_idx = tokens_per_frame // 2
-    cos_frame = cos4[:, :, center_idx:center_idx+1, :]  # (B, num_frames, 1, C)
-    sin_frame = sin4[:, :, center_idx:center_idx+1, :]  # (B, num_frames, 1, C)
+    cos_frame = cos4[:, :, center_idx : center_idx + 1, :]  # (B, num_frames, 1, C)
+    sin_frame = sin4[:, :, center_idx : center_idx + 1, :]  # (B, num_frames, 1, C)
 
     cos_out = torch.cat([cos4, cos_frame], dim=2).reshape(B, num_frames * (tokens_per_frame + 1), C)
     sin_out = torch.cat([sin4, sin_frame], dim=2).reshape(B, num_frames * (tokens_per_frame + 1), C)
-    
+
     return cos_out, sin_out
 
 
@@ -188,9 +200,7 @@ class LTXVideoAttnProcessor:
 
     def __init__(self):
         if is_torch_version("<", "2.0"):
-            raise ValueError(
-                "LTX attention processors require a minimum PyTorch version of 2.0."
-            )
+            raise ValueError("LTX attention processors require a minimum PyTorch version of 2.0.")
 
     def __call__(
         self,
@@ -277,8 +287,12 @@ class LTXAttention(torch.nn.Module, AttentionModuleMixin):
 
         norm_eps = 1e-5
         norm_elementwise_affine = True
-        self.norm_q = torch.nn.RMSNorm(dim_head * heads, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
-        self.norm_k = torch.nn.RMSNorm(dim_head * kv_heads, eps=norm_eps, elementwise_affine=norm_elementwise_affine)
+        self.norm_q = torch.nn.RMSNorm(
+            dim_head * heads, eps=norm_eps, elementwise_affine=norm_elementwise_affine
+        )
+        self.norm_k = torch.nn.RMSNorm(
+            dim_head * kv_heads, eps=norm_eps, elementwise_affine=norm_elementwise_affine
+        )
         self.to_q = torch.nn.Linear(query_dim, self.inner_dim, bias=bias)
         self.to_k = torch.nn.Linear(self.cross_attention_dim, self.inner_kv_dim, bias=bias)
         self.to_v = torch.nn.Linear(self.cross_attention_dim, self.inner_kv_dim, bias=bias)
@@ -305,7 +319,9 @@ class LTXAttention(torch.nn.Module, AttentionModuleMixin):
                 f"attention_kwargs {unused_kwargs} are not expected by {self.processor.__class__.__name__} and will be ignored."
             )
         kwargs = {k: w for k, w in kwargs.items() if k in attn_parameters}
-        return self.processor(self, hidden_states, encoder_hidden_states, attention_mask, image_rotary_emb, **kwargs)
+        return self.processor(
+            self, hidden_states, encoder_hidden_states, attention_mask, image_rotary_emb, **kwargs
+        )
 
 
 class LTXVideoRotaryPosEmbed(nn.Module):
@@ -346,7 +362,9 @@ class LTXVideoRotaryPosEmbed(nn.Module):
         grid = grid.unsqueeze(0).repeat(batch_size, 1, 1, 1, 1)
 
         if rope_interpolation_scale is not None:
-            grid[:, 0:1] = grid[:, 0:1] * rope_interpolation_scale[0] * self.patch_size_t / self.base_num_frames
+            grid[:, 0:1] = (
+                grid[:, 0:1] * rope_interpolation_scale[0] * self.patch_size_t / self.base_num_frames
+            )
             grid[:, 1:2] = grid[:, 1:2] * rope_interpolation_scale[1] * self.patch_size / self.base_height
             grid[:, 2:3] = grid[:, 2:3] * rope_interpolation_scale[2] * self.patch_size / self.base_width
 
@@ -566,7 +584,7 @@ class LTXVideoTransformer3DModel(
         out_proj_dim = out_channels * (patch_size * patch_size)
 
         self.proj_in = nn.Linear(in_proj_dim, inner_dim)
-        
+
         self.use_frame_tokens = use_frame_tokens
         self.use_insertion_head = use_insertion_head
 
@@ -583,7 +601,9 @@ class LTXVideoTransformer3DModel(
         self.scale_shift_table = nn.Parameter(torch.randn(2, inner_dim) / inner_dim**0.5)
         self.time_embed = AdaLayerNormSingle(inner_dim, use_additional_conditions=False)
 
-        self.caption_projection = PixArtAlphaTextProjection(in_features=caption_channels, hidden_size=inner_dim)
+        self.caption_projection = PixArtAlphaTextProjection(
+            in_features=caption_channels, hidden_size=inner_dim
+        )
 
         self.rope = LTXVideoRotaryPosEmbed(
             dim=inner_dim,
@@ -637,7 +657,6 @@ class LTXVideoTransformer3DModel(
         x = x.reshape(B, num_frames * Hp * Wp, C * ps * ps)
         return x, Hp, Wp
 
-
     def _unpatchify_spatial(self, x, num_frames, Hp, Wp):
         # x: [B, num_frames*Hp*Wp, out_channels*ps*ps]
         ps = self.patch_size
@@ -650,11 +669,10 @@ class LTXVideoTransformer3DModel(
         assert out_channels * ps * ps == Cout_ps2, "Bad output channel multiple"
 
         x = x.view(B, num_frames, Hp, Wp, ps, ps, out_channels)  # [B,D,Hp,Wp,ps,ps,Cout]
-        x = x.permute(0, 1, 2, 4, 3, 5, 6).contiguous()          # [B,D,Hp,ps,Wp,ps,Cout]
-        x = x.view(B, num_frames, Hp * ps, Wp * ps, out_channels) # [B,D,H,W,Cout]
+        x = x.permute(0, 1, 2, 4, 3, 5, 6).contiguous()  # [B,D,Hp,ps,Wp,ps,Cout]
+        x = x.view(B, num_frames, Hp * ps, Wp * ps, out_channels)  # [B,D,H,W,Cout]
         x = x.view(B, num_frames * (Hp * ps) * (Wp * ps), out_channels)
         return x
-
 
     def forward(
         self,
@@ -682,17 +700,17 @@ class LTXVideoTransformer3DModel(
             scale_lora_layers(self, lora_scale)
         else:
             if attention_kwargs is not None and attention_kwargs.get("scale", None) is not None:
-                logger.warning("Passing `scale` via `attention_kwargs` when not using the PEFT backend is ineffective.")
+                logger.warning(
+                    "Passing `scale` via `attention_kwargs` when not using the PEFT backend is ineffective."
+                )
 
         if num_frames is None:
             raise ValueError("num_frames must be provided for LTXVideoTransformer3DModel.forward().")
 
         batch_size = hidden_states.size(0)
 
-       
         hidden_states, rope_h, rope_w = self._patchify_spatial(hidden_states, num_frames, height, width)
         tokens_per_frame = rope_h * rope_w
-
 
         # IMPORTANT: now tokens_per_frame is rope_h * rope_w (not height * width)
         # and RoPE should be computed on patch grid sizes
@@ -705,10 +723,11 @@ class LTXVideoTransformer3DModel(
             video_coords=video_coords,
         )
 
-
         if self.use_frame_tokens:
             cos, sin = image_rotary_emb
-            cos, sin = _pad_rope_for_frame_tokens(cos, sin, num_frames=num_frames, tokens_per_frame=tokens_per_frame)
+            cos, sin = _pad_rope_for_frame_tokens(
+                cos, sin, num_frames=num_frames, tokens_per_frame=tokens_per_frame
+            )
             image_rotary_emb = (cos, sin)
 
         if encoder_attention_mask is not None and encoder_attention_mask.ndim == 2:
@@ -721,7 +740,9 @@ class LTXVideoTransformer3DModel(
         if self.use_frame_tokens:
             hs4 = hidden_states.view(batch_size, num_frames, tokens_per_frame, -1)
             ftok = self.frame_token.to(hidden_states.dtype).expand(batch_size, num_frames, 1, -1)
-            hidden_states = torch.cat([hs4, ftok], dim=2).reshape(batch_size, num_frames * (tokens_per_frame + 1), -1)
+            hidden_states = torch.cat([hs4, ftok], dim=2).reshape(
+                batch_size, num_frames * (tokens_per_frame + 1), -1
+            )
             S_total = hidden_states.shape[1]
         else:
             S_total = hidden_states.shape[1]
@@ -739,8 +760,10 @@ class LTXVideoTransformer3DModel(
             embedded_f = embedded_f.view(batch_size, num_frames, -1)
 
             tpf_total = tokens_per_frame + (1 if self.use_frame_tokens else 0)
-            temb = temb_f[:, :, None, :].expand(batch_size, num_frames, tpf_total, temb_f.shape[-1]).reshape(
-                batch_size, num_frames * tpf_total, temb_f.shape[-1]
+            temb = (
+                temb_f[:, :, None, :]
+                .expand(batch_size, num_frames, tpf_total, temb_f.shape[-1])
+                .reshape(batch_size, num_frames * tpf_total, temb_f.shape[-1])
             )
 
             embedded_timestep = embedded_f[:, 0:1, :]
@@ -764,11 +787,9 @@ class LTXVideoTransformer3DModel(
 
             # self_attention_mask = (1.0 - token_mask.to(hidden_states.dtype)) * -100000.0
             # self_attention_mask = self_attention_mask.unsqueeze(1)
-            
+
             mask_value = torch.finfo(hidden_states.dtype).min
             self_attention_mask = torch.where(token_mask, 0.0, mask_value).to(hidden_states.dtype)
-
-            
 
         encoder_hidden_states = self.caption_projection(encoder_hidden_states)
         encoder_hidden_states = encoder_hidden_states.view(batch_size, -1, hidden_states.size(-1))
@@ -809,7 +830,9 @@ class LTXVideoTransformer3DModel(
             if self.use_insertion_head:
                 frame_logits = self.insertion_head(frame_tok_states)
 
-            hidden_states = hs4[:, :, :tokens_per_frame, :].reshape(batch_size, num_frames * tokens_per_frame, -1)
+            hidden_states = hs4[:, :, :tokens_per_frame, :].reshape(
+                batch_size, num_frames * tokens_per_frame, -1
+            )
 
             if frame_mask is not None:
                 spatial_token_mask = _make_token_mask_from_frame_mask(
@@ -840,7 +863,7 @@ class FlowceptionV3_LTXWrapper(nn.Module):
     """
     API-compatible wrapper around LTXVideoTransformer3DModel.
     Supports both 2B and 13B model variants.
-    
+
     Args:
         model_size: "2b" or "13b" to select model architecture
         checkpoint_path: Path to the safetensors checkpoint
@@ -875,13 +898,13 @@ class FlowceptionV3_LTXWrapper(nn.Module):
 
         self.ltx_in_channels = ltx_in_channels
         self.ltx_out_channels = ltx_out_channels
-        
+
         self.fps = fps
 
         # Get config for model size
         if model_size not in LTX_MODEL_CONFIGS:
             raise ValueError(f"model_size must be '2b' or '13b', got {model_size}")
-        
+
         config = LTX_MODEL_CONFIGS[model_size]
 
         # Create LTX transformer with appropriate config
@@ -908,13 +931,12 @@ class FlowceptionV3_LTXWrapper(nn.Module):
 
         if act_checkpoint:
             self.ltx.enable_gradient_checkpointing()
-        
+
         if checkpoint_path:
             self._load_checkpoint(checkpoint_path)
 
         # Fallback logits if insertion head disabled
         self.fallback_logits = nn.Linear(ltx_out_channels, 1)
-
 
     def _load_checkpoint(self, checkpoint_path: str):
         from pathlib import Path
@@ -953,8 +975,9 @@ class FlowceptionV3_LTXWrapper(nn.Module):
                 logger.warning(f"  {k}: ckpt={s_ckpt} model={s_model}")
 
         result = self.ltx.load_state_dict(filtered, strict=False)
-        logger.info(f"Load result - Missing: {len(result.missing_keys)}, Unexpected: {len(result.unexpected_keys)}")
-
+        logger.info(
+            f"Load result - Missing: {len(result.missing_keys)}, Unexpected: {len(result.unexpected_keys)}"
+        )
 
     def forward(
         self,
@@ -974,7 +997,7 @@ class FlowceptionV3_LTXWrapper(nn.Module):
     ):
         """
         Forward pass.
-        
+
         Args:
             sample: [B, D, C, H, W] (AE latent)
             timestep: [B] or [B, D] - sigma values in [0, 1] where 1=noise, 0=clean
@@ -983,7 +1006,7 @@ class FlowceptionV3_LTXWrapper(nn.Module):
             fps: frames per second for ROPE scaling
             timestep_in_sigma: If True (default), timestep is sigma in [0,1].
                               If False, timestep is already scaled to [0, 1000].
-                              
+
         Note on Flow Matching / Rectified Flow:
             - LTX uses flow matching where the model predicts velocity v = ε - x₀
             - The noisy sample is x_t = (1-σ)x₀ + σε
@@ -1086,9 +1109,9 @@ def LTX2B(**kwargs):
         ltx_in_channels=128,
         ltx_out_channels=None,
         checkpoint_path=checkpoint_path,
-        **kwargs
+        **kwargs,
     )
-    
+
     return model
 
 
@@ -1113,9 +1136,9 @@ def LTX2B_P2(**kwargs):
         ltx_in_channels=16,
         ltx_out_channels=None,
         checkpoint_path=checkpoint_path,
-        **kwargs
+        **kwargs,
     )
-    
+
     return model
 
 
@@ -1140,7 +1163,7 @@ def LTX2B_096_Dev(**kwargs):
         ltx_in_channels=128,
         ltx_out_channels=None,
         checkpoint_path=checkpoint_path,
-        **kwargs
+        **kwargs,
     )
     return model
 
@@ -1166,7 +1189,7 @@ def LTX2B_096_Distilled(**kwargs):
         ltx_in_channels=128,
         ltx_out_channels=None,
         checkpoint_path=checkpoint_path,
-        **kwargs
+        **kwargs,
     )
     return model
 
@@ -1192,7 +1215,7 @@ def LTX2B_098_Distilled(**kwargs):
         ltx_in_channels=128,
         ltx_out_channels=None,
         checkpoint_path=checkpoint_path,
-        **kwargs
+        **kwargs,
     )
     return model
 
@@ -1218,9 +1241,9 @@ def LTX13B(**kwargs):
         ltx_in_channels=128,
         ltx_out_channels=None,
         checkpoint_path=checkpoint_path,
-        **kwargs
+        **kwargs,
     )
-    
+
     return model
 
 
@@ -1245,7 +1268,7 @@ def LTX13B_097_Dev(**kwargs):
         ltx_in_channels=128,
         ltx_out_channels=None,
         checkpoint_path=checkpoint_path,
-        **kwargs
+        **kwargs,
     )
     return model
 
@@ -1271,7 +1294,7 @@ def LTX13B_097_Distilled(**kwargs):
         ltx_in_channels=128,
         ltx_out_channels=None,
         checkpoint_path=checkpoint_path,
-        **kwargs
+        **kwargs,
     )
     return model
 
@@ -1297,7 +1320,7 @@ def LTX13B_098_Dev(**kwargs):
         ltx_in_channels=128,
         ltx_out_channels=None,
         checkpoint_path=checkpoint_path,
-        **kwargs
+        **kwargs,
     )
     return model
 
@@ -1305,43 +1328,41 @@ def LTX13B_098_Dev(**kwargs):
 # Model registry
 ltxn_98_models = {
     # 2B — trained with LTX-Video 0.9.5
-    "ltx2b":              LTX2B,
-    "ltx2b-distilled":    LTX2B,
+    "ltx2b": LTX2B,
+    "ltx2b-distilled": LTX2B,
     "ltx2b-p2-distilled": LTX2B_P2,
     # 2B — newer base weights
-    "ltx2b-0.9.6-dev":        LTX2B_096_Dev,
-    "ltx2b-0.9.6-distilled":  LTX2B_096_Distilled,
-    "ltx2b-0.9.8-distilled":  LTX2B_098_Distilled,
+    "ltx2b-0.9.6-dev": LTX2B_096_Dev,
+    "ltx2b-0.9.6-distilled": LTX2B_096_Distilled,
+    "ltx2b-0.9.8-distilled": LTX2B_098_Distilled,
     # 13B — trained with LTX-Video 0.9.8-distilled
-    "ltx13b-distilled":       LTX13B,
-    "ltx13b-0.9.7-dev":       LTX13B_097_Dev,
+    "ltx13b-distilled": LTX13B,
+    "ltx13b-0.9.7-dev": LTX13B_097_Dev,
     "ltx13b-0.9.7-distilled": LTX13B_097_Distilled,
-    "ltx13b-0.9.8-dev":       LTX13B_098_Dev,
+    "ltx13b-0.9.8-dev": LTX13B_098_Dev,
 }
 
 
 # Convenience function to create model by version
 def create_ltx_model(
-    version: Union[str, LTXModelVersion],
-    checkpoint_path: Optional[str] = None,
-    **kwargs
+    version: Union[str, LTXModelVersion], checkpoint_path: Optional[str] = None, **kwargs
 ) -> FlowceptionV3_LTXWrapper:
     """
     Create LTX model by version string or enum.
-    
+
     Args:
         version: Model version (e.g., "ltxv-2b-0.9.5", "ltxv-13b-0.9.8-dev")
         checkpoint_path: Path to checkpoint file
         **kwargs: Additional arguments passed to the model
-        
+
     Returns:
         FlowceptionV3_LTXWrapper instance
     """
     if isinstance(version, LTXModelVersion):
         version = version.value
-    
+
     version_lower = version.lower()
-    
+
     # Determine model size from version string
     if "13b" in version_lower:
         factory = LTX13B
@@ -1349,5 +1370,5 @@ def create_ltx_model(
         factory = LTX2B
     else:
         raise ValueError(f"Cannot determine model size from version: {version}")
-    
+
     return factory(checkpoint_path=checkpoint_path, **kwargs)

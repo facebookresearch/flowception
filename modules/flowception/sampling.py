@@ -27,8 +27,6 @@ def vanilla_sample_flowception(
     H, W, C = first_frames.shape[-3:]
     B = batch_size
 
-
-
     # support for more than one context frame.
     Y_t = torch.full((B, input_length, H, W, C), padding_index, device=device, dtype=torch.float32)
     M_t = torch.zeros(B, input_length, device=device, dtype=torch.bool)
@@ -90,7 +88,6 @@ def vanilla_sample_flowception(
             Y2[:, 0] = 0 * Y_t[:, 0]
             context_uncond = torch.zeros_like(context_full)
 
-
             velocity_pred_uncond, lambda_ins_pred_uncond, _, _ = forward_fn(
                 # x_t=Y_t,
                 x_t=Y2,
@@ -131,7 +128,6 @@ def vanilla_sample_flowception(
         # Compute expected insertions per video before sampling
         expected_inserts = lambda_ins_pred.sum(dim=1)  # shape [B]
         all_expected_lengths.append((expected_inserts + M_t.sum(1)).tolist())
-
 
         # Either one insertion occurs or no insertion occurs
         insert_counts = (torch.rand_like(prob_insertion) < prob_insertion).int()
@@ -203,7 +199,6 @@ def vanilla_sample_flowception(
         )
 
         step += 1
-
 
     Y_T_list.append(Y_t.clone())
     M_t_list.append(M_t.clone())
@@ -270,8 +265,10 @@ def vanilla_sample_noisy_flowception(
 
     context_full = torch.zeros_like(Y_t)
     # shifted schedule with less noise.
-    context_full[:, :K] = first_frames[:, :K] * s_offset/2 + (1 - s_offset/2) * torch.randn_like(first_frames[:, :K])
-    
+    context_full[:, :K] = first_frames[:, :K] * s_offset / 2 + (1 - s_offset / 2) * torch.randn_like(
+        first_frames[:, :K]
+    )
+
     Y_noise = torch.randn_like(first_frames[:, :K])
 
     for step in tqdm.tqdm(range(2 * num_steps)):
@@ -280,16 +277,15 @@ def vanilla_sample_noisy_flowception(
         t = current_t
         h = dt
         h_flow = torch.where(t + h < 1.0, h, torch.zeros_like(h))
-        ct = current_t.max(dim=1, keepdim=True).values[:, :, None, None, None] 
+        ct = current_t.max(dim=1, keepdim=True).values[:, :, None, None, None]
         ct2 = (s_offset + ct).clip(0, 1)
-        ct3 = (s_offset/2 + ct).clip(0, 1)
-        
+        ct3 = (s_offset / 2 + ct).clip(0, 1)
+
         Y_t[:, :K] = first_frames[:, :K] * ct + (1 - ct) * Y_noise
-        
+
         context_full = torch.zeros_like(Y_t)
         # shifted schedule with less noise.
         context_full[:, :K] = first_frames[:, :K] * ct3 + (1 - ct3) * torch.randn_like(first_frames[:, :K])
-        
 
         velocity_pred, lambda_ins_pred, _, _ = forward_fn(
             x_t=Y_t,
@@ -303,7 +299,9 @@ def vanilla_sample_noisy_flowception(
 
         if s_text > 1.0:
             context_uncond = torch.zeros_like(Y_t)
-            context_uncond[:, :K] = first_frames[:, :K] * ct2 + (1 - ct2) * torch.randn_like(first_frames[:, :K])
+            context_uncond[:, :K] = first_frames[:, :K] * ct2 + (1 - ct2) * torch.randn_like(
+                first_frames[:, :K]
+            )
 
             velocity_pred_uncond, lambda_ins_pred_uncond, _, _ = forward_fn(
                 x_t=Y_t,
@@ -343,7 +341,6 @@ def vanilla_sample_noisy_flowception(
         # Compute expected insertions per video before sampling
         expected_inserts = lambda_ins_pred.sum(dim=1)  # shape [B]
         all_expected_lengths.append((expected_inserts + M_t.sum(1)).tolist())
-
 
         # Either one insertion occurs or no insertion occurs
         insert_counts = (torch.rand_like(prob_insertion) < prob_insertion).int()
@@ -416,7 +413,6 @@ def vanilla_sample_noisy_flowception(
 
         step += 1
 
-
     Y_T_list.append(Y_t.clone())
     M_t_list.append(M_t.clone())
 
@@ -464,8 +460,7 @@ def vanilla_sample_flowception_t2v(
     H, W, C = first_frames.shape[-3:]
     B = batch_size
     num_frames = input_length
-    
-    
+
     # --- init sequence (NHWC latents layout as in your code) ---
     Y_t = torch.full((B, num_frames, H, W, C), padding_index, device=device, dtype=torch.float32)
     M_t = torch.zeros((B, num_frames), device=device, dtype=torch.bool)
@@ -474,7 +469,7 @@ def vanilla_sample_flowception_t2v(
     current_u = torch.zeros((B, num_frames), device=device, dtype=torch.float32)
 
     K = 0
-    
+
     rand_len = max(0, min(start_frames, num_frames - K))
     if rand_len > 0:
         Y_t[:, K : K + rand_len] = torch.randn_like(Y_t[:, K : K + rand_len])
@@ -491,9 +486,9 @@ def vanilla_sample_flowception_t2v(
     context_full = torch.zeros_like(Y_t)
 
     for step in tqdm.tqdm(range(2 * num_steps)):
-        t = scale_snr(current_u, s=snr_shift)                         # [B,L]
-        u_next = (current_u + dt_u).clamp(0.0, 1.0)                   # [B,L]
-        t_next = scale_snr(u_next, s=snr_shift)                       # [B,L]
+        t = scale_snr(current_u, s=snr_shift)  # [B,L]
+        u_next = (current_u + dt_u).clamp(0.0, 1.0)  # [B,L]
+        t_next = scale_snr(u_next, s=snr_shift)  # [B,L]
 
         # flow step size is in denoising time
         h_flow = torch.where(current_u < 1.0, (t_next - t), torch.zeros_like(t))
@@ -539,14 +534,16 @@ def vanilla_sample_flowception_t2v(
         # --- flow update ---
         Y_t = Y_t + h_flow[:, :, None, None, None] * velocity_pred
 
-        ins_u = torch.max(current_u, dim=1, keepdim=True).values       # [B,1]
+        ins_u = torch.max(current_u, dim=1, keepdim=True).values  # [B,1]
         kappa_u = (ins_u - ins_start).clamp(0.0, 1.0 - ins_start) / (1.0 - ins_start)
 
         d_kappa = torch.full_like(current_u, 1.0 / (1.0 - ins_start))
         d_kappa[(ins_u < ins_start)[:, 0]] = 0.0
 
         # inserts happen with uniform du (not warped dt)
-        h_ins = torch.where((ins_u + dt_u[:, :1] < 1.0), torch.ones_like(current_u) / num_steps, torch.zeros_like(current_u))
+        h_ins = torch.where(
+            (ins_u + dt_u[:, :1] < 1.0), torch.ones_like(current_u) / num_steps, torch.zeros_like(current_u)
+        )
 
         ratio = torch.where(current_u < ins_start, torch.zeros_like(current_u), d_kappa / (1.0 - kappa_u))
         Lambda = lambda_ins_pred * h_ins * ratio
@@ -572,15 +569,23 @@ def vanilla_sample_flowception_t2v(
 
                 # frames to insert (per-sample padded to Imax)
                 inserting_frames = torch.randn((B, Imax, H, W, C), device=device, dtype=Y_t.dtype)
-                inserting_mask = (torch.arange(Imax, device=device)[None, :] < num_insertions[:, None])  # [B,Imax]
+                inserting_mask = (
+                    torch.arange(Imax, device=device)[None, :] < num_insertions[:, None]
+                )  # [B,Imax]
 
                 # compute where real frames land after inserting
-                real_frames_pos = torch.arange(num_frames, device=device)[None, :].repeat(B, 1)  # [B,num_frames]
+                real_frames_pos = torch.arange(num_frames, device=device)[None, :].repeat(
+                    B, 1
+                )  # [B,num_frames]
                 # shift positions after each slot by cumulative inserts before it
-                real_frames_pos[:, 1:] = real_frames_pos[:, 1:] + insert_counts.cumsum(dim=1)[:, :-1].to(torch.int64)
+                real_frames_pos[:, 1:] = real_frames_pos[:, 1:] + insert_counts.cumsum(dim=1)[:, :-1].to(
+                    torch.int64
+                )
 
                 # allocate expanded buffers
-                expanded_frames = torch.full((B, Lnew, H, W, C), padding_index, device=device, dtype=Y_t.dtype)
+                expanded_frames = torch.full(
+                    (B, Lnew, H, W, C), padding_index, device=device, dtype=Y_t.dtype
+                )
                 expanded_mask = torch.zeros((B, Lnew), device=device, dtype=torch.bool)
                 expanded_times = torch.zeros((B, Lnew), device=device, dtype=current_u.dtype)
                 expanded_ins_times = torch.full((B, Lnew), -1.0, device=device, dtype=insert_time_map.dtype)
@@ -598,7 +603,9 @@ def vanilla_sample_flowception_t2v(
                 insert_mask.scatter_(1, real_frames_pos, False)  # True where an inserted slot can go
 
                 # rank of each insertion slot (0..I_slots-1) per row
-                insert_rank = insert_mask.cumsum(dim=1) - 1  # [-1 for non-insert early, but we'll gate with insert_mask]
+                insert_rank = (
+                    insert_mask.cumsum(dim=1) - 1
+                )  # [-1 for non-insert early, but we'll gate with insert_mask]
 
                 # keep only first num_insertions[b] slots for each sample
                 keep_insert = insert_mask & (insert_rank < num_insertions[:, None])
@@ -652,8 +659,6 @@ def vanilla_sample_flowception_prescribed(
 ):
     H, W, C = first_frames.shape[-3:]
     B = batch_size
-
-
 
     # support for more than one context frame.
     Y_t = torch.full((B, input_length, H, W, C), padding_index, device=device, dtype=torch.float32)
@@ -734,16 +739,13 @@ def vanilla_sample_flowception_prescribed(
 
         Y_t[:, 1:] = Y_t[:, 1:] + h_flow[:, 1:, None, None, None] * velocity_pred[:, 1:]
 
-
         # d_kappa = torch.full_like(h_flow, 1 / (1 - ins_start))
         # d_kappa[(ins_t < ins_start)[:, 0]] = 0
 
         # h_ins = torch.where((ins_t + h < 1.0), torch.ones_like(h) / num_steps, torch.zeros_like(h))
 
-
         # prob_insertion = h_lamb
         # # prob_insertion = 1 - torch.exp(-h_lamb)
-
 
         # # Either one insertion occurs or no insertion occurs
         # insert_counts = (torch.rand_like(prob_insertion) < prob_insertion).int()
@@ -778,10 +780,8 @@ def vanilla_sample_flowception_prescribed(
 
             # Either one insertion occurs or no insertion occurs
             insert_counts = (torch.rand_like(prob_insertion) < prob_insertion).int()
-            
-        
-        else:
 
+        else:
             B, num_frames = M_t.shape
             device = M_t.device
 
@@ -804,7 +804,6 @@ def vanilla_sample_flowception_prescribed(
             insert_counts = torch.zeros((B, num_frames), device=device, dtype=torch.int32)
 
             if insertion_rule == "random":
-
                 p = torch.zeros_like(current_real)
                 valid = current_real > 0
                 p[valid] = expected_inserts_this_step[valid] / current_real[valid].clamp(min=1.0)
@@ -819,7 +818,6 @@ def vanilla_sample_flowception_prescribed(
                 insert_counts = insert_counts * can_insert_mask.int()
 
             elif insertion_rule == "middle":
-
                 for b in range(B):
                     if remaining_needed[b] <= 0:
                         continue
@@ -835,7 +833,7 @@ def vanilla_sample_flowception_prescribed(
                         insert_counts[b, mid_pos] = 1
 
                 insert_counts = insert_counts * can_insert_mask.int()
-            
+
             elif insertion_rule == "right":
                 for b in range(B):
                     if remaining_needed[b] <= 0:
@@ -848,7 +846,6 @@ def vanilla_sample_flowception_prescribed(
                         last_pos = real_idx[-1]  # append to the right
                         insert_counts[b, last_pos] = 1
                 insert_counts = insert_counts * can_insert_mask.int()
-
 
             else:
                 raise ValueError(f"Unknown insertion_rule: {insertion_rule}")
@@ -924,7 +921,6 @@ def vanilla_sample_flowception_prescribed(
         )
 
         step += 1
-
 
     Y_T_list.append(Y_t.clone())
     M_t_list.append(M_t.clone())
@@ -1035,7 +1031,6 @@ def vanilla_sample_interp_flowception(
             # build broadcast masks
             guide5 = guide_mask[:, :, None, None, None]
             t_ratio = (t_uncond / t.clamp_min(1e-4))[:, :, None, None, None]
-
 
             # Y2 = Y_t + s_offset * (4 * t * (1-t))[:, :, None, None, None].pow(0.3) * noise
             # Y2 = torch.where(guide5, Y2, Y_t)
@@ -1264,8 +1259,6 @@ def vanilla_sample_flow_only_fullseq(
 
         # cfg on velocity (your same trick with t_offset)
         if s_text > 1.0 and uc is not None:
-
-
             t_new = (t - s_offset * torch.rand((1,), device=t.device)).clip(0, 1)
             t_uncond = torch.where(t == 1, t, t_new)
             t_ratio = (t_uncond / t.clip(1e-4, None))[:, :, None, None, None].to(Y_t.dtype)
@@ -1288,7 +1281,6 @@ def vanilla_sample_flow_only_fullseq(
             )
             vel = vel * s_text + vel_u * (1.0 - s_text)
 
-
         # update only non-context frames (keep first K frozen)
         if K < input_length:
             Y_t[:, K:] = Y_t[:, K:] + dt[:, K:, None, None, None] * vel[:, K:]
@@ -1300,7 +1292,6 @@ def vanilla_sample_flow_only_fullseq(
 
         # expected length per video is always the fixed sequence length
         all_expected_lengths.append([int(input_length)] * B)
-
 
     # final snapshots (your original code appends final states)
     Y_T_list.append(Y_t.clone())
@@ -1378,8 +1369,6 @@ def vanilla_sample_flow_only_fullseq_t2v(
 
         # cfg on velocity (your same trick with t_offset)
         if s_text > 1.0 and uc is not None:
-
-            
             context_uncond = torch.zeros_like(context_full)
 
             vel_u, _, _, _ = forward_fn(
@@ -1410,5 +1399,4 @@ def vanilla_sample_flow_only_fullseq_t2v(
     Y_T_list.append(Y_t.clone())
     M_t_list.append(M_t.clone())
 
-    
     return Y_t, M_t, Y_T_list, M_t_list, insert_time_map, all_expected_lengths

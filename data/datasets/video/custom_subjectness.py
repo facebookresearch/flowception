@@ -6,7 +6,8 @@ from decord import VideoReader, cpu
 from decord import bridge as decord_bridge
 
 # Return torch tensors from decord (so we can .to(torch.float32))
-decord_bridge.set_bridge('torch')
+decord_bridge.set_bridge("torch")
+
 
 def _passes_subjectness_filters(
     entry: dict,
@@ -23,9 +24,11 @@ def _passes_subjectness_filters(
 
     # pull values, tolerate missing -> fail that constraint only
     subj = sd.get("subjectness", None)
-    sr   = sd.get("size_ratio", None)
+    sr = sd.get("size_ratio", None)
 
-    if (min_subjectness is not None) and (not isinstance(subj, (int, float)) or subj < float(min_subjectness)):
+    if (min_subjectness is not None) and (
+        not isinstance(subj, (int, float)) or subj < float(min_subjectness)
+    ):
         return False
     if (min_size_ratio is not None) and (not isinstance(sr, (int, float)) or sr < float(min_size_ratio)):
         return False
@@ -40,19 +43,19 @@ class CustomSubjectnessFlowception(Dataset):
         annotations_dir: str,
         width: int,
         height: int,
-        num_frames: int = 72,            # requested output length (we will ceil-align to 1 + n*ld)
+        num_frames: int = 72,  # requested output length (we will ceil-align to 1 + n*ld)
         min_motion_score: float = 3.0,
         sampling_fps: float = 24.0,
         native_fps: float = 24.0,
         pick_files: int | None = 64,
         # --- VAE/Flowception knobs ---
-        num_start_frames: int = 2,       # k
-        latent_downsample: int = 8,      # ld
+        num_start_frames: int = 2,  # k
+        latent_downsample: int = 8,  # ld
         max_retries: int = 20,
         # --- entropy filter knobs ---
         min_entropy: float | None = None,  # e.g. 5.0 (nats) or 6.5 (bits) – None disables filtering
-        entropy_base: float | str = 'e',   # 'e' (nats) or 2 (bits)
-        return_entropy: bool = False,      # if True, include measured entropy in condition
+        entropy_base: float | str = "e",  # 'e' (nats) or 2 (bits)
+        return_entropy: bool = False,  # if True, include measured entropy in condition
         # --- NEW: subjectness filters ---
         min_subjectness: float | None = None,
         min_size_ratio: float | None = None,
@@ -80,7 +83,8 @@ class CustomSubjectnessFlowception(Dataset):
 
             # motion filter first (same behavior as before)
             motion_filtered = [
-                it for it in data
+                it
+                for it in data
                 if isinstance(it.get(motion_key, None), (int, float))
                 and float(it[motion_key]) >= float(min_motion_score)
             ]
@@ -88,11 +92,13 @@ class CustomSubjectnessFlowception(Dataset):
 
             # NEW: subjectness + size_ratio filters
             subj_filtered = [
-                it for it in motion_filtered
+                it
+                for it in motion_filtered
                 if _passes_subjectness_filters(
-                    it, min_subjectness=min_subjectness if min_subjectness > 0 else None,
-                    min_size_ratio=min_size_ratio if min_size_ratio>0 else None, 
-                    max_size_ratio=max_size_ratio if max_size_ratio>0 else None,
+                    it,
+                    min_subjectness=min_subjectness if min_subjectness > 0 else None,
+                    min_size_ratio=min_size_ratio if min_size_ratio > 0 else None,
+                    max_size_ratio=max_size_ratio if max_size_ratio > 0 else None,
                 )
             ]
             kept_subj += len(subj_filtered)
@@ -101,8 +107,10 @@ class CustomSubjectnessFlowception(Dataset):
         self.all_entries = all_entries
         print(f"Remaining items after motion ≥ {min_motion_score}: {kept_motion}")
         if any(v is not None for v in (min_subjectness, min_size_ratio, max_size_ratio)):
-            print(f"Remaining items after subjectness filters "
-                  f"(min_subj={min_subjectness}, size∈[{min_size_ratio},{max_size_ratio}]): {kept_subj}")
+            print(
+                f"Remaining items after subjectness filters "
+                f"(min_subj={min_subjectness}, size∈[{min_size_ratio},{max_size_ratio}]): {kept_subj}"
+            )
 
         self.width = int(width)
         self.height = int(height)
@@ -139,9 +147,11 @@ class CustomSubjectnessFlowception(Dataset):
 
     # --- pure-torch grayscale entropy on a single uint8 frame [H,W,3]
     @staticmethod
-    def _frame_entropy_uint8(frame_uint8: torch.Tensor, base: float | str = 'e') -> float:
+    def _frame_entropy_uint8(frame_uint8: torch.Tensor, base: float | str = "e") -> float:
         f = frame_uint8.to(torch.float32)
-        gray = (0.299 * f[..., 0] + 0.587 * f[..., 1] + 0.114 * f[..., 2]).round().clamp(0, 255).to(torch.uint8)
+        gray = (
+            (0.299 * f[..., 0] + 0.587 * f[..., 1] + 0.114 * f[..., 2]).round().clamp(0, 255).to(torch.uint8)
+        )
         flat = gray.view(-1)
         counts = torch.bincount(flat, minlength=256).to(torch.float32)
         total = counts.sum()
@@ -149,7 +159,7 @@ class CustomSubjectnessFlowception(Dataset):
             return 0.0
         p = counts[counts > 0] / total
         H = -(p * torch.log(p)).sum()  # nats
-        if base == 'e':
+        if base == "e":
             return float(H.item())
         else:
             base = float(base)
@@ -162,24 +172,21 @@ class CustomSubjectnessFlowception(Dataset):
         if not isinstance(vid_path, str) or not os.path.isfile(vid_path):
             raise FileNotFoundError(str(vid_path))
 
-        reader = VideoReader(
-            vid_path, num_threads=-1, ctx=cpu(0),
-            width=self.width, height=self.height
-        )
+        reader = VideoReader(vid_path, num_threads=-1, ctx=cpu(0), width=self.width, height=self.height)
         total = len(reader)
         if total < 1:
             raise ValueError("Empty video")
 
         ld = self.latent_downsample
-        k  = self.num_start_frames
-        s  = self.frame_stride
-        T  = self.num_frames
+        k = self.num_start_frames
+        s = self.frame_stride
+        T = self.num_frames
 
         # Frames available at this stride from the whole video
         max_valid = 1 + (total - 1) // s
 
         # Minimum real RGB frames you need (first + groups of ld)
-        min_latents      = k + 2
+        min_latents = k + 2
         min_valid_needed = 1 + (min_latents - 1) * ld
 
         if max_valid < min_valid_needed:
@@ -215,12 +222,13 @@ class CustomSubjectnessFlowception(Dataset):
             frames = frames_valid
             frame_indices = idx_valid
 
-        frame_mask    = torch.zeros(T, dtype=torch.bool); frame_mask[:L] = True
+        frame_mask = torch.zeros(T, dtype=torch.bool)
+        frame_mask[:L] = True
         latent_length = 1 + (L - 1) // ld
-        video_length  = L
+        video_length = L
 
-        img_tensor    = frames.permute(3, 0, 1, 2).contiguous()             # [C,T,H,W]
-        anchor_tensor = frames_valid[:1].permute(3, 0, 1, 2).contiguous()   # [3,1,H,W]
+        img_tensor = frames.permute(3, 0, 1, 2).contiguous()  # [C,T,H,W]
+        anchor_tensor = frames_valid[:1].permute(3, 0, 1, 2).contiguous()  # [3,1,H,W]
 
         assert img_tensor.shape[1] == T
         assert frame_mask.numel() == T

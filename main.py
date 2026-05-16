@@ -516,9 +516,7 @@ def train(cfg, args):
 
     # Resume
     logger.info("Checking for checkpoint to resume.")
-    start_epoch, local_step, global_step = resume_from_checkpoint(
-        cfg, args, accelerator, ema, logger
-    )
+    start_epoch, local_step, global_step = resume_from_checkpoint(cfg, args, accelerator, ema, logger)
 
     # Instantiate trainer
     logger.info("Instantiating trainer.")

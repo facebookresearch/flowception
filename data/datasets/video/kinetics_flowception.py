@@ -239,11 +239,14 @@ from engine.data_classes import Datapoint
 from decord import VideoReader, cpu
 from decord import bridge as decord_bridge
 
-decord_bridge.set_bridge('torch')
+decord_bridge.set_bridge("torch")
+
 
 def _kinetics_filename(youtube_id: str, t0: float, t1: float) -> str:
-    s0 = int(round(t0)); s1 = int(round(t1))
+    s0 = int(round(t0))
+    s1 = int(round(t1))
     return f"{youtube_id}_{s0:06d}_{s1:06d}.mp4"
+
 
 class KineticsDatasetFlowception(Dataset):
     """
@@ -251,6 +254,7 @@ class KineticsDatasetFlowception(Dataset):
       - Assumes files are at: <videos_root>/<youtube_id>_<start:06d>_<end:06d>.mp4
       - Does NOT check existence during __init__.
     """
+
     def __init__(
         self,
         csv_path: str,
@@ -266,19 +270,21 @@ class KineticsDatasetFlowception(Dataset):
         max_retries: int = 20,
     ):
         self.videos_root = videos_root
-        self.width = int(width); self.height = int(height)
+        self.width = int(width)
+        self.height = int(height)
         self.num_start_frames = int(num_start_frames)
         self.latent_downsample = int(latent_downsample)
         self.max_retries = int(max_retries)
         self.sampling_fps = float(sampling_fps)
 
         # Align T to 1 + n*ld
-        T_req = int(num_frames); ld = self.latent_downsample
+        T_req = int(num_frames)
+        ld = self.latent_downsample
         if T_req <= 1:
             raise ValueError("num_frames must be >= 2 (first + groups-of-ld)")
         rem = (T_req - 1) % ld
         if rem != 0:
-            T_req += (ld - rem)
+            T_req += ld - rem
         self.num_frames = T_req
 
         # Fast CSV ingest only
@@ -289,11 +295,14 @@ class KineticsDatasetFlowception(Dataset):
                 if split and r.get("split", "").strip().lower() != split:
                     continue
                 try:
-                    rows.append((
-                        r["label"].strip(),
-                        r["youtube_id"].strip(),
-                        float(r["time_start"]), float(r["time_end"]),
-                    ))
+                    rows.append(
+                        (
+                            r["label"].strip(),
+                            r["youtube_id"].strip(),
+                            float(r["time_start"]),
+                            float(r["time_end"]),
+                        )
+                    )
                 except Exception:
                     continue
 
@@ -335,13 +344,13 @@ class KineticsDatasetFlowception(Dataset):
         vr = VideoReader(vpath, num_threads=-1, ctx=cpu(0), width=self.width, height=self.height)
         total = len(vr)
 
-        s  = max(1, int(round(native_fps / max(1e-6, self.sampling_fps))))
+        s = max(1, int(round(native_fps / max(1e-6, self.sampling_fps))))
         ld = self.latent_downsample
-        k  = self.num_start_frames
-        T  = self.num_frames
+        k = self.num_start_frames
+        T = self.num_frames
 
         max_valid = 1 + (total - 1) // s
-        min_latents      = k + 2
+        min_latents = k + 2
         min_valid_needed = 1 + (min_latents - 1) * ld
         if max_valid < min_valid_needed:
             raise RuntimeError("Clip too short for min latent length")
@@ -366,13 +375,14 @@ class KineticsDatasetFlowception(Dataset):
             frames = frames_valid
             frame_indices = idx_valid
 
-        frame_mask    = torch.zeros(T, dtype=torch.bool); frame_mask[:L] = True
+        frame_mask = torch.zeros(T, dtype=torch.bool)
+        frame_mask[:L] = True
         latent_length = 1 + (L - 1) // ld
-        video_length  = L
+        video_length = L
 
-        img_tensor    = frames.permute(3, 0, 1, 2).contiguous()           # [C,T,H,W]
-        anchor_tensor = frames_valid[:1].permute(3, 0, 1, 2).contiguous() # [3,1,H,W]
-        crop_coords   = torch.zeros(8)
+        img_tensor = frames.permute(3, 0, 1, 2).contiguous()  # [C,T,H,W]
+        anchor_tensor = frames_valid[:1].permute(3, 0, 1, 2).contiguous()  # [3,1,H,W]
+        crop_coords = torch.zeros(8)
 
         return Datapoint(
             pixel_values=img_tensor,

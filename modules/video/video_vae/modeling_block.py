@@ -9,10 +9,16 @@ from einops import rearrange
 from diffusers.utils import logging
 from diffusers.models.attention_processor import Attention
 from .modeling_resnet import (
-    Downsample2D, ResnetBlock2D, CausalResnetBlock3D, Upsample2D,
-    TemporalDownsample2x, TemporalUpsample2x,
-    CausalDownsample2x, CausalTemporalDownsample2x,
-    CausalUpsample2x, CausalTemporalUpsample2x,
+    Downsample2D,
+    ResnetBlock2D,
+    CausalResnetBlock3D,
+    Upsample2D,
+    TemporalDownsample2x,
+    TemporalUpsample2x,
+    CausalDownsample2x,
+    CausalTemporalDownsample2x,
+    CausalUpsample2x,
+    CausalTemporalUpsample2x,
 )
 
 logger = logging.get_logger(__name__)  # pylint: disable=invalid-name
@@ -23,10 +29,10 @@ def get_input_layer(
     out_channels: int,
     norm_num_groups: int,
     layer_type: str,
-    norm_type: str = 'group',
+    norm_type: str = "group",
     affine: bool = True,
 ):
-    if layer_type == 'conv':
+    if layer_type == "conv":
         input_layer = nn.Conv3d(
             in_channels,
             out_channels,
@@ -34,8 +40,8 @@ def get_input_layer(
             stride=1,
             padding=1,
         )
-    
-    elif layer_type == 'pixel_shuffle':
+
+    elif layer_type == "pixel_shuffle":
         input_layer = nn.Sequential(
             nn.PixelUnshuffle(2),
             nn.Conv2d(in_channels * 4, out_channels, kernel_size=1),
@@ -51,22 +57,22 @@ def get_output_layer(
     out_channels: int,
     norm_num_groups: int,
     layer_type: str,
-    norm_type: str = 'group',
+    norm_type: str = "group",
     affine: bool = True,
 ):
-    if layer_type == 'norm_act_conv':
+    if layer_type == "norm_act_conv":
         output_layer = nn.Sequential(
             nn.GroupNorm(num_channels=in_channels, num_groups=norm_num_groups, eps=1e-6, affine=affine),
             nn.SiLU(),
             nn.Conv3d(in_channels, out_channels, 3, stride=1, padding=1),
         )
 
-    elif layer_type == 'pixel_shuffle':
+    elif layer_type == "pixel_shuffle":
         output_layer = nn.Sequential(
             nn.Conv2d(in_channels, out_channels * 4, kernel_size=1),
             nn.PixelShuffle(2),
         )
-    
+
     else:
         raise NotImplementedError(f"Not support output layer {layer_type}")
 
@@ -82,16 +88,16 @@ def get_down_block(
     add_spatial_downsample: bool = None,
     add_temporal_downsample: bool = None,
     resnet_eps: float = 1e-6,
-    resnet_act_fn: str = 'silu',
+    resnet_act_fn: str = "silu",
     resnet_groups: Optional[int] = None,
     downsample_padding: Optional[int] = None,
     resnet_time_scale_shift: str = "default",
     attention_head_dim: Optional[int] = None,
     dropout: float = 0.0,
     norm_affline: bool = True,
-    norm_layer: str = 'layer',
+    norm_layer: str = "layer",
 ):
-    
+
     if down_block_type == "DownEncoderBlock2D":
         return DownEncoderBlock2D(
             num_layers=num_layers,
@@ -135,7 +141,7 @@ def get_up_block(
     add_spatial_upsample: bool = None,
     add_temporal_upsample: bool = None,
     resnet_eps: float = 1e-6,
-    resnet_act_fn: str = 'silu',
+    resnet_act_fn: str = "silu",
     resolution_idx: Optional[int] = None,
     resnet_groups: Optional[int] = None,
     resnet_time_scale_shift: str = "default",
@@ -143,9 +149,9 @@ def get_up_block(
     dropout: float = 0.0,
     interpolate: bool = True,
     norm_affline: bool = True,
-    norm_layer: str = 'layer',
+    norm_layer: str = "layer",
 ) -> nn.Module:
-    
+
     if up_block_type == "UpDecoderBlock2D":
         return UpDecoderBlock2D(
             num_layers=num_layers,
@@ -299,17 +305,19 @@ class UNetMidBlock2D(nn.Module):
         self.attentions = nn.ModuleList(attentions)
         self.resnets = nn.ModuleList(resnets)
 
-    def forward(self, hidden_states: torch.FloatTensor, temb: Optional[torch.FloatTensor] = None) -> torch.FloatTensor:
+    def forward(
+        self, hidden_states: torch.FloatTensor, temb: Optional[torch.FloatTensor] = None
+    ) -> torch.FloatTensor:
         hidden_states = self.resnets[0](hidden_states, temb)
         t = hidden_states.shape[2]
 
         for attn, resnet in zip(self.attentions, self.resnets[1:]):
             if attn is not None:
-                hidden_states = rearrange(hidden_states, 'b c t h w -> b t c h w')
-                hidden_states = rearrange(hidden_states, 'b t c h w -> (b t) c h w')
+                hidden_states = rearrange(hidden_states, "b c t h w -> b t c h w")
+                hidden_states = rearrange(hidden_states, "b t c h w -> (b t) c h w")
                 hidden_states = attn(hidden_states, temb=temb)
-                hidden_states = rearrange(hidden_states, '(b t) c h w -> b t c h w', t=t)
-                hidden_states = rearrange(hidden_states, 'b t c h w -> b c t h w')
+                hidden_states = rearrange(hidden_states, "(b t) c h w -> b t c h w", t=t)
+                hidden_states = rearrange(hidden_states, "b t c h w -> b c t h w")
 
             hidden_states = resnet(hidden_states, temb)
 
@@ -432,20 +440,29 @@ class CausalUNetMidBlock2D(nn.Module):
         self.attentions = nn.ModuleList(attentions)
         self.resnets = nn.ModuleList(resnets)
 
-    def forward(self, hidden_states: torch.FloatTensor, temb: Optional[torch.FloatTensor] = None,
-            is_init_image=True, temporal_chunk=False) -> torch.FloatTensor:
-        hidden_states = self.resnets[0](hidden_states, temb, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+    def forward(
+        self,
+        hidden_states: torch.FloatTensor,
+        temb: Optional[torch.FloatTensor] = None,
+        is_init_image=True,
+        temporal_chunk=False,
+    ) -> torch.FloatTensor:
+        hidden_states = self.resnets[0](
+            hidden_states, temb, is_init_image=is_init_image, temporal_chunk=temporal_chunk
+        )
         t = hidden_states.shape[2]
 
         for attn, resnet in zip(self.attentions, self.resnets[1:]):
             if attn is not None:
-                hidden_states = rearrange(hidden_states, 'b c t h w -> b t c h w')
-                hidden_states = rearrange(hidden_states, 'b t c h w -> (b t) c h w')
+                hidden_states = rearrange(hidden_states, "b c t h w -> b t c h w")
+                hidden_states = rearrange(hidden_states, "b t c h w -> (b t) c h w")
                 hidden_states = attn(hidden_states, temb=temb)
-                hidden_states = rearrange(hidden_states, '(b t) c h w -> b t c h w', t=t)
-                hidden_states = rearrange(hidden_states, 'b t c h w -> b c t h w')
+                hidden_states = rearrange(hidden_states, "(b t) c h w -> b t c h w", t=t)
+                hidden_states = rearrange(hidden_states, "b t c h w -> b c t h w")
 
-            hidden_states = resnet(hidden_states, temb, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+            hidden_states = resnet(
+                hidden_states, temb, is_init_image=is_init_image, temporal_chunk=temporal_chunk
+            )
 
         return hidden_states
 
@@ -493,7 +510,9 @@ class DownEncoderBlockCausal3D(nn.Module):
             self.downsamplers = nn.ModuleList(
                 [
                     CausalDownsample2x(
-                        out_channels, use_conv=True, out_channels=out_channels,
+                        out_channels,
+                        use_conv=True,
+                        out_channels=out_channels,
                     )
                 ]
             )
@@ -504,27 +523,37 @@ class DownEncoderBlockCausal3D(nn.Module):
             self.temporal_downsamplers = nn.ModuleList(
                 [
                     CausalTemporalDownsample2x(
-                        out_channels, use_conv=True, out_channels=out_channels,
+                        out_channels,
+                        use_conv=True,
+                        out_channels=out_channels,
                     )
                 ]
             )
         else:
             self.temporal_downsamplers = None
 
-    def forward(self, hidden_states: torch.FloatTensor, is_init_image=True, temporal_chunk=False) -> torch.FloatTensor:
+    def forward(
+        self, hidden_states: torch.FloatTensor, is_init_image=True, temporal_chunk=False
+    ) -> torch.FloatTensor:
         for resnet in self.resnets:
-            hidden_states = resnet(hidden_states, temb=None, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+            hidden_states = resnet(
+                hidden_states, temb=None, is_init_image=is_init_image, temporal_chunk=temporal_chunk
+            )
 
         if self.downsamplers is not None:
             for downsampler in self.downsamplers:
-                hidden_states = downsampler(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+                hidden_states = downsampler(
+                    hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk
+                )
 
         if self.temporal_downsamplers is not None:
             for temporal_downsampler in self.temporal_downsamplers:
-                hidden_states = temporal_downsampler(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+                hidden_states = temporal_downsampler(
+                    hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk
+                )
 
         return hidden_states
-    
+
 
 class DownEncoderBlock2D(nn.Module):
     def __init__(
@@ -569,7 +598,11 @@ class DownEncoderBlock2D(nn.Module):
             self.downsamplers = nn.ModuleList(
                 [
                     Downsample2D(
-                        out_channels, use_conv=True, out_channels=out_channels, padding=downsample_padding, name="op"
+                        out_channels,
+                        use_conv=True,
+                        out_channels=out_channels,
+                        padding=downsample_padding,
+                        name="op",
                     )
                 ]
             )
@@ -580,7 +613,10 @@ class DownEncoderBlock2D(nn.Module):
             self.temporal_downsamplers = nn.ModuleList(
                 [
                     TemporalDownsample2x(
-                        out_channels, use_conv=True, out_channels=out_channels, padding=downsample_padding,
+                        out_channels,
+                        use_conv=True,
+                        out_channels=out_channels,
+                        padding=downsample_padding,
                     )
                 ]
             )
@@ -645,19 +681,31 @@ class UpDecoderBlock2D(nn.Module):
         self.resnets = nn.ModuleList(resnets)
 
         if add_spatial_upsample:
-            self.upsamplers = nn.ModuleList([Upsample2D(out_channels, use_conv=True, out_channels=out_channels, interpolate=interpolate)])
+            self.upsamplers = nn.ModuleList(
+                [Upsample2D(out_channels, use_conv=True, out_channels=out_channels, interpolate=interpolate)]
+            )
         else:
             self.upsamplers = None
 
         if add_temporal_upsample:
-            self.temporal_upsamplers = nn.ModuleList([TemporalUpsample2x(out_channels, use_conv=True, out_channels=out_channels, interpolate=interpolate)])
+            self.temporal_upsamplers = nn.ModuleList(
+                [
+                    TemporalUpsample2x(
+                        out_channels, use_conv=True, out_channels=out_channels, interpolate=interpolate
+                    )
+                ]
+            )
         else:
             self.temporal_upsamplers = None
 
         self.resolution_idx = resolution_idx
 
     def forward(
-        self, hidden_states: torch.FloatTensor, temb: Optional[torch.FloatTensor] = None, scale: float = 1.0, is_image: bool = False,
+        self,
+        hidden_states: torch.FloatTensor,
+        temb: Optional[torch.FloatTensor] = None,
+        scale: float = 1.0,
+        is_image: bool = False,
     ) -> torch.FloatTensor:
         for resnet in self.resnets:
             hidden_states = resnet(hidden_states, temb=temb, scale=scale)
@@ -665,7 +713,7 @@ class UpDecoderBlock2D(nn.Module):
         if self.upsamplers is not None:
             for upsampler in self.upsamplers:
                 hidden_states = upsampler(hidden_states)
-        
+
         if self.temporal_upsamplers is not None:
             for temporal_upsampler in self.temporal_upsamplers:
                 hidden_states = temporal_upsampler(hidden_states, is_image=is_image)
@@ -716,30 +764,51 @@ class UpDecoderBlockCausal3D(nn.Module):
         self.resnets = nn.ModuleList(resnets)
 
         if add_spatial_upsample:
-            self.upsamplers = nn.ModuleList([CausalUpsample2x(out_channels, use_conv=True, out_channels=out_channels, interpolate=interpolate)])
+            self.upsamplers = nn.ModuleList(
+                [
+                    CausalUpsample2x(
+                        out_channels, use_conv=True, out_channels=out_channels, interpolate=interpolate
+                    )
+                ]
+            )
         else:
             self.upsamplers = None
 
         if add_temporal_upsample:
-            self.temporal_upsamplers = nn.ModuleList([CausalTemporalUpsample2x(out_channels, use_conv=True, out_channels=out_channels, interpolate=interpolate)])
+            self.temporal_upsamplers = nn.ModuleList(
+                [
+                    CausalTemporalUpsample2x(
+                        out_channels, use_conv=True, out_channels=out_channels, interpolate=interpolate
+                    )
+                ]
+            )
         else:
             self.temporal_upsamplers = None
 
         self.resolution_idx = resolution_idx
 
     def forward(
-        self, hidden_states: torch.FloatTensor, temb: Optional[torch.FloatTensor] = None,
-        is_init_image=True, temporal_chunk=False,
+        self,
+        hidden_states: torch.FloatTensor,
+        temb: Optional[torch.FloatTensor] = None,
+        is_init_image=True,
+        temporal_chunk=False,
     ) -> torch.FloatTensor:
         for resnet in self.resnets:
-            hidden_states = resnet(hidden_states, temb=temb, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+            hidden_states = resnet(
+                hidden_states, temb=temb, is_init_image=is_init_image, temporal_chunk=temporal_chunk
+            )
 
         if self.upsamplers is not None:
             for upsampler in self.upsamplers:
-                hidden_states = upsampler(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
-        
+                hidden_states = upsampler(
+                    hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk
+                )
+
         if self.temporal_upsamplers is not None:
             for temporal_upsampler in self.temporal_upsamplers:
-                hidden_states = temporal_upsampler(hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
+                hidden_states = temporal_upsampler(
+                    hidden_states, is_init_image=is_init_image, temporal_chunk=temporal_chunk
+                )
 
         return hidden_states

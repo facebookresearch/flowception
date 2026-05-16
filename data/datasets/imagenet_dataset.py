@@ -67,7 +67,7 @@ class JSONDataset(Dataset):
 #                 )
 #             )
 #             print("Got blurred set")
-        
+
 #         self.img_root = img_root
 
 #         if isinstance(img_size, tuple):
@@ -113,7 +113,7 @@ class JSONDataset(Dataset):
 
 #         w, h = img.size
 #         w0,h0=w,h
-        
+
 #         if self.crop:
 #             # w, h = self.new_size
 #             # dw = random.randint(self.img_size[0], w)
@@ -128,8 +128,8 @@ class JSONDataset(Dataset):
 
 #             # mask_cropped = mask.crop((x0, y0, x0 + dw, y0 + dh))
 #             # mask_cropped = mask_cropped.resize(self.img_size)
-            
-            
+
+
 #             dw = random.randint(int(self.crop_scale * w), w)
 #             dh = random.randint(int(self.crop_scale * h), h)
 #             x0 = random.randint(0, w - dw)
@@ -137,7 +137,7 @@ class JSONDataset(Dataset):
 
 #             img_cropped = img.crop((x0, y0, x0 + dw, y0 + dh))
 #             img_cropped = img_cropped.resize(self.img_size)
-            
+
 #             mask_cropped = mask.crop((x0, y0, x0 + dw, y0 + dh))
 #             mask_cropped = mask_cropped.resize(self.img_size, resample=0)
 #         else:
@@ -146,14 +146,14 @@ class JSONDataset(Dataset):
 #             # scale = int(w0 / self.img_size[0])
 #             # img_cropped = img.resize(self.img_size).convert("RGB")
 #             # mask_cropped = mask.resize(self.img_size)
-            
+
 #             dw, dh, x0, y0 = w, h, 0, 0
 #             img_cropped = img.resize(self.img_size)
 #             mask_cropped = mask.resize(self.img_size, resample=0)
 
 #         img_tensor = self.to_tensor(img_cropped)
 #         mask_tensor = 1.0 - transforms.ToTensor()(mask_cropped)
-        
+
 #         if not self.explicit_aspect_ratio:
 #             crop_coords = [item["width"], item["height"], x0, y0, (w - dw - x0), (h - dh - y0)]
 #         else:
@@ -170,7 +170,7 @@ class JSONDataset(Dataset):
 #             crop_coords.append(float(flipped) * 500.0)
 #         if self.blur_cond:
 #             crop_coords.append(500.0 * float(((1.0 - mask_tensor).sum() > 1).item()))
-            
+
 #             # print(im_tensor.shape, torch.tensor([item["class_id"]]).shape, torch.tensor(crop_coords).shape, mask_tensor.shape)
 
 #         # print(img_tensor.shape)
@@ -187,10 +187,6 @@ class JSONDataset(Dataset):
 #         )
 
 
-
-
-
-
 class JSONExtDataset(Dataset):
     def __init__(
         self,
@@ -200,7 +196,7 @@ class JSONExtDataset(Dataset):
         img_size=(256, 256),
         crop_scale=0.9,
         blur_dir=None,
-        img_root = "",
+        img_root="",
         flip_cond=False,
         blur_cond=False,
         explicit_aspect_ratio=False,
@@ -225,7 +221,7 @@ class JSONExtDataset(Dataset):
                 )
             )
             print("Got blurred set")
-        
+
         self.img_root = img_root
 
         if isinstance(img_size, tuple):
@@ -267,15 +263,15 @@ class JSONExtDataset(Dataset):
             mask = mask.transpose(Image.FLIP_LEFT_RIGHT)
 
         w, h = img.size
-        w0,h0=w,h
-            
+        w0, h0 = w, h
+
         dw, dh, x0, y0 = w, h, 0, 0
         img_cropped = img.resize(self.img_size, resample=3)
         mask_cropped = mask.resize(self.img_size, resample=0)
 
         img_tensor = self.to_tensor(img_cropped)
         mask_tensor = 1.0 - transforms.ToTensor()(mask_cropped)
-        
+
         if not self.explicit_aspect_ratio:
             crop_coords = [item["width"], item["height"], x0, y0, (w - dw - x0), (h - dh - y0)]
         else:
@@ -292,12 +288,12 @@ class JSONExtDataset(Dataset):
             crop_coords.append(float(flipped) * 500.0)
         if self.blur_cond:
             crop_coords.append(500.0 * float(((1.0 - mask_tensor).sum() > 1).item()))
-            
+
         return Datapoint(
             pixel_values=img_tensor,  # Pixel values are in the range [0, 1].
             condition={
                 "class_id": torch.tensor([item["class_id"]]),
                 "crop_coords": torch.zeros_like(torch.tensor(crop_coords)),
-                "caption_idx": torch.tensor([0])
+                "caption_idx": torch.tensor([0]),
             },
         )

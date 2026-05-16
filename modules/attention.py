@@ -51,6 +51,7 @@ else:
 try:
     import xformers
     import xformers.ops
+
     XFORMERS_IS_AVAILABLE = True
 except ImportError:
     XFORMERS_IS_AVAILABLE = False
@@ -346,11 +347,13 @@ class MemoryEfficientCrossAttention(nn.Module):
 
         b, _, _ = q.shape
         q, k, v = map(
-            lambda t: t.unsqueeze(3)
-            .reshape(b, t.shape[1], self.heads, self.dim_head)
-            .permute(0, 2, 1, 3)
-            .reshape(b * self.heads, t.shape[1], self.dim_head)
-            .contiguous(),
+            lambda t: (
+                t.unsqueeze(3)
+                .reshape(b, t.shape[1], self.heads, self.dim_head)
+                .permute(0, 2, 1, 3)
+                .reshape(b * self.heads, t.shape[1], self.dim_head)
+                .contiguous()
+            ),
             (q, k, v),
         )
 
@@ -422,7 +425,7 @@ class BasicTransformerBlock(nn.Module):
             )
             attn_mode = "softmax"
         elif attn_mode == "softmax" and not SDP_IS_AVAILABLE:
-            logpy.warn("We do not support vanilla attention anymore, as it is too " "expensive. Sorry.")
+            logpy.warn("We do not support vanilla attention anymore, as it is too expensive. Sorry.")
             assert XFORMERS_IS_AVAILABLE, "Please install xformers via e.g. 'pip install xformers==0.0.16'"
             logpy.info("Falling back to xformers efficient attention.")
             attn_mode = "softmax-xformers"
@@ -580,9 +583,9 @@ class SpatialTransformer(nn.Module):
                     f"to {depth * [context_dim[0]]} now."
                 )
                 # depth does not match context dims.
-                assert all(
-                    map(lambda x: x == context_dim[0], context_dim)
-                ), "need homogenous context_dim to match depth automatically"
+                assert all(map(lambda x: x == context_dim[0], context_dim)), (
+                    "need homogenous context_dim to match depth automatically"
+                )
                 context_dim = depth * [context_dim[0]]
         elif context_dim is None:
             context_dim = [None] * depth

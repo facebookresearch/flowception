@@ -10,9 +10,7 @@ from transformers.utils import is_accelerate_available
 
 def get_fsdp_ckpt_kwargs():
     """Return extra kwargs accepted by ``save_fsdp_model`` (version-dependent)."""
-    if is_accelerate_available() and "adapter_only" in list(
-        inspect.signature(save_fsdp_model).parameters
-    ):
+    if is_accelerate_available() and "adapter_only" in list(inspect.signature(save_fsdp_model).parameters):
         return {"adapter_only": True}
     return {}
 

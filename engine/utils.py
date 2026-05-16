@@ -16,9 +16,7 @@ def append_dims(x, target_dims):
     """Appends dimensions to the end of a tensor until it has target_dims dimensions."""
     dims_to_append = target_dims - x.ndim
     if dims_to_append < 0:
-        raise ValueError(
-            f"input has {x.ndim} dims but target_dims is {target_dims}, which is less"
-        )
+        raise ValueError(f"input has {x.ndim} dims but target_dims is {target_dims}, which is less")
     return x[(...,) + (None,) * dims_to_append]
 
 
@@ -107,15 +105,11 @@ def update_ema_loss_bins(ema_tracker, loss_tensor, timesteps, frame_axis=1, alph
             if t not in ema_tracker[bin_idx]:
                 ema_tracker[bin_idx][t] = mean_loss
             else:
-                ema_tracker[bin_idx][t] = (
-                    alpha * ema_tracker[bin_idx][t] + (1 - alpha) * mean_loss
-                )
+                ema_tracker[bin_idx][t] = alpha * ema_tracker[bin_idx][t] + (1 - alpha) * mean_loss
     return ema_tracker
 
 
-def sample_tau_g_edge_equalized(
-    batch_size: int, device, eps: float = 1e-2
-) -> torch.Tensor:
+def sample_tau_g_edge_equalized(batch_size: int, device, eps: float = 1e-2) -> torch.Tensor:
     """Sample tau_g in [eps, 2-eps] with density q(beta) ∝ 1/min(beta, 2-beta)."""
     B = batch_size
     u_side = torch.rand(B, 1, device=device)
@@ -143,9 +137,7 @@ def scale_snr(u, sigma_scale):
     return u / (1 + (sigma_scale - 1) * (1 - u))
 
 
-def frame_cov_full_masked(
-    x: torch.Tensor, m: torch.Tensor, eps: float = 1e-6
-) -> torch.Tensor:
+def frame_cov_full_masked(x: torch.Tensor, m: torch.Tensor, eps: float = 1e-6) -> torch.Tensor:
     """
     Mask-aware per-video full channel covariance over frames + spatial dims.
 
@@ -239,24 +231,17 @@ class GPUBatchVideoAug:
 
         # --------- HFLIP (batched select) ----------
         if self.hflip_p > 0:
-            flip = (torch.rand((B,), generator=gen, device=device) < self.hflip_p).view(
-                B, 1, 1, 1, 1
-            )
+            flip = (torch.rand((B,), generator=gen, device=device) < self.hflip_p).view(B, 1, 1, 1, 1)
             x_flip = x.flip(-1)
             x = torch.where(flip, x_flip, x)
 
         # --------- SPATIAL AFFINE (single grid_sample over B*T) ----------
-        if (
-            self.spatial_p > 0
-            and torch.rand((), generator=gen, device=device).item() < self.spatial_p
-        ):
+        if self.spatial_p > 0 and torch.rand((), generator=gen, device=device).item() < self.spatial_p:
             zoom = torch.empty((B,), device=device, dtype=torch.float32).uniform_(
                 self.scale_range[0], self.scale_range[1], generator=gen
             )
 
-            ang_deg = (torch.rand((B,), device=device, generator=gen) * 2 - 1) * float(
-                self.rot_deg
-            )
+            ang_deg = (torch.rand((B,), device=device, generator=gen) * 2 - 1) * float(self.rot_deg)
             ang_fwd = ang_deg * (math.pi / 180.0)
 
             z_min = _min_zoom_to_avoid_padding(ang_fwd, H, W)
@@ -292,16 +277,10 @@ class GPUBatchVideoAug:
             theta[:, 0, 2] = txn
             theta[:, 1, 2] = tyn
 
-            frames = (
-                x.permute(0, 2, 1, 3, 4).reshape(B * T, C, H, W).contiguous()
-            )
-            theta_bt = (
-                theta[:, None].expand(B, T, 2, 3).reshape(B * T, 2, 3).contiguous()
-            )
+            frames = x.permute(0, 2, 1, 3, 4).reshape(B * T, C, H, W).contiguous()
+            theta_bt = theta[:, None].expand(B, T, 2, 3).reshape(B * T, 2, 3).contiguous()
 
-            grid = F.affine_grid(
-                theta_bt.to(dtype), frames.size(), align_corners=self.align_corners
-            )
+            grid = F.affine_grid(theta_bt.to(dtype), frames.size(), align_corners=self.align_corners)
             frames = F.grid_sample(
                 frames,
                 grid,
@@ -312,29 +291,18 @@ class GPUBatchVideoAug:
             x = frames.reshape(B, T, C, H, W).permute(0, 2, 1, 3, 4).contiguous()
 
         # --------- COLOR (vectorized, per-clip params, no flicker) ----------
-        if (
-            self.color_p > 0
-            and torch.rand((), generator=gen, device=device).item() < self.color_p
-        ):
+        if self.color_p > 0 and torch.rand((), generator=gen, device=device).item() < self.color_p:
             y = (x * 0.5 + 0.5).clamp(0.0, 1.0).to(torch.float32)
 
-            b = (torch.rand((B,), generator=gen, device=device) * 2 - 1) * float(
-                self.brightness
-            )
-            c = 1.0 + (torch.rand((B,), generator=gen, device=device) * 2 - 1) * float(
-                self.contrast
-            )
-            s = 1.0 + (torch.rand((B,), generator=gen, device=device) * 2 - 1) * float(
-                self.saturation
-            )
+            b = (torch.rand((B,), generator=gen, device=device) * 2 - 1) * float(self.brightness)
+            c = 1.0 + (torch.rand((B,), generator=gen, device=device) * 2 - 1) * float(self.contrast)
+            s = 1.0 + (torch.rand((B,), generator=gen, device=device) * 2 - 1) * float(self.saturation)
             h = (
                 (torch.rand((B,), generator=gen, device=device) * 2 - 1)
                 * float(self.hue_deg)
                 * (math.pi / 180.0)
             )
-            g = 1.0 + (torch.rand((B,), generator=gen, device=device) * 2 - 1) * float(
-                self.gamma
-            )
+            g = 1.0 + (torch.rand((B,), generator=gen, device=device) * 2 - 1) * float(self.gamma)
 
             b = b.view(B, 1, 1, 1, 1)
             c = c.view(B, 1, 1, 1, 1)
@@ -347,9 +315,7 @@ class GPUBatchVideoAug:
             y = (y - mean) * c + mean
 
             if C == 3:
-                gray = (0.299 * y[:, 0] + 0.587 * y[:, 1] + 0.114 * y[:, 2]).unsqueeze(
-                    1
-                )
+                gray = (0.299 * y[:, 0] + 0.587 * y[:, 1] + 0.114 * y[:, 2]).unsqueeze(1)
                 y = gray + s * (y - gray)
 
                 cosh = torch.cos(h).view(B, 1, 1, 1)

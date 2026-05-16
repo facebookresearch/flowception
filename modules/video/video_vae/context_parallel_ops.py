@@ -155,5 +155,3 @@ def conv_gather_from_context_parallel_region(input_, dim, kernel_size):
 
 def cp_pass_from_previous_rank(input_, dim, kernel_size):
     return _CPConvolutionPassFromPreviousRank.apply(input_, dim, kernel_size)
-
-

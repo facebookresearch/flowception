@@ -18,9 +18,9 @@ from .modeling_block import (
     get_output_layer,
 )
 from .modeling_resnet import (
-    Downsample2D, 
-    Upsample2D, 
-    TemporalDownsample2x, 
+    Downsample2D,
+    Upsample2D,
+    TemporalDownsample2x,
     TemporalUpsample2x,
 )
 from .modeling_causal_conv import CausalConv3d, CausalGroupNorm
@@ -130,7 +130,9 @@ class CausalVaeEncoder(nn.Module):
 
         # out
 
-        self.conv_norm_out = CausalGroupNorm(num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6)
+        self.conv_norm_out = CausalGroupNorm(
+            num_channels=block_out_channels[-1], num_groups=norm_num_groups, eps=1e-6
+        )
         self.conv_act = nn.SiLU()
 
         conv_out_channels = 2 * out_channels if double_z else out_channels
@@ -138,7 +140,9 @@ class CausalVaeEncoder(nn.Module):
 
         self.gradient_checkpointing = False
 
-    def forward(self, sample: torch.FloatTensor, is_init_image=True, temporal_chunk=False) -> torch.FloatTensor:
+    def forward(
+        self, sample: torch.FloatTensor, is_init_image=True, temporal_chunk=False
+    ) -> torch.FloatTensor:
         r"""The forward method of the `Encoder` class."""
 
         sample = self.conv_in(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
@@ -155,19 +159,29 @@ class CausalVaeEncoder(nn.Module):
             if is_torch_version(">=", "1.11.0"):
                 for down_block in self.down_blocks:
                     sample = torch.utils.checkpoint.checkpoint(
-                        create_custom_forward(down_block), sample, is_init_image, 
-                            temporal_chunk, use_reentrant=False
+                        create_custom_forward(down_block),
+                        sample,
+                        is_init_image,
+                        temporal_chunk,
+                        use_reentrant=False,
                     )
                 # middle
                 sample = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(self.mid_block), sample, is_init_image, 
-                        temporal_chunk, use_reentrant=False
+                    create_custom_forward(self.mid_block),
+                    sample,
+                    is_init_image,
+                    temporal_chunk,
+                    use_reentrant=False,
                 )
             else:
                 for down_block in self.down_blocks:
-                    sample = torch.utils.checkpoint.checkpoint(create_custom_forward(down_block), sample, is_init_image, temporal_chunk)
+                    sample = torch.utils.checkpoint.checkpoint(
+                        create_custom_forward(down_block), sample, is_init_image, temporal_chunk
+                    )
                 # middle
-                sample = torch.utils.checkpoint.checkpoint(create_custom_forward(self.mid_block), sample, is_init_image, temporal_chunk)
+                sample = torch.utils.checkpoint.checkpoint(
+                    create_custom_forward(self.mid_block), sample, is_init_image, temporal_chunk
+                )
 
         else:
             # down
@@ -272,7 +286,7 @@ class CausalVaeDecoder(nn.Module):
                 resnet_groups=norm_num_groups,
                 attention_head_dim=output_channel,
                 temb_channels=None,
-                resnet_time_scale_shift='default',
+                resnet_time_scale_shift="default",
                 interpolate=interpolate,
                 dropout=block_dropout[i],
             )
@@ -280,7 +294,9 @@ class CausalVaeDecoder(nn.Module):
             prev_output_channel = output_channel
 
         # out
-        self.conv_norm_out = CausalGroupNorm(num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6)
+        self.conv_norm_out = CausalGroupNorm(
+            num_channels=block_out_channels[0], num_groups=norm_num_groups, eps=1e-6
+        )
         self.conv_act = nn.SiLU()
         self.conv_out = CausalConv3d(block_out_channels[0], out_channels, kernel_size=3, stride=1)
 
@@ -289,7 +305,7 @@ class CausalVaeDecoder(nn.Module):
     def forward(
         self,
         sample: torch.FloatTensor,
-        is_init_image=True, 
+        is_init_image=True,
         temporal_chunk=False,
     ) -> torch.FloatTensor:
         r"""The forward method of the `Decoder` class."""
@@ -328,22 +344,33 @@ class CausalVaeDecoder(nn.Module):
             else:
                 # middle
                 sample = torch.utils.checkpoint.checkpoint(
-                    create_custom_forward(self.mid_block), sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk,
+                    create_custom_forward(self.mid_block),
+                    sample,
+                    is_init_image=is_init_image,
+                    temporal_chunk=temporal_chunk,
                 )
                 sample = sample.to(upscale_dtype)
 
                 # up
                 for up_block in self.up_blocks:
-                    sample = torch.utils.checkpoint.checkpoint(create_custom_forward(up_block), sample, 
-                        is_init_image=is_init_image, temporal_chunk=temporal_chunk,)
+                    sample = torch.utils.checkpoint.checkpoint(
+                        create_custom_forward(up_block),
+                        sample,
+                        is_init_image=is_init_image,
+                        temporal_chunk=temporal_chunk,
+                    )
         else:
             # middle
             sample = self.mid_block(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk)
             sample = sample.to(upscale_dtype)
-            
+
             # up
             for up_block in self.up_blocks:
-                sample = up_block(sample, is_init_image=is_init_image, temporal_chunk=temporal_chunk,)
+                sample = up_block(
+                    sample,
+                    is_init_image=is_init_image,
+                    temporal_chunk=temporal_chunk,
+                )
 
         # post-process
         sample = self.conv_norm_out(sample)
